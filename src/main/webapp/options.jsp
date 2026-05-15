@@ -6,12 +6,14 @@
     String toolTitle       = (String) request.getAttribute("toolTitle");
     String adminEmail      = (String) request.getAttribute("adminEmail");
     String fromEmail       = (String) request.getAttribute("fromEmail");
-    String resourceFieldId = (String) request.getAttribute("resourceFieldId");
+    String resourceFieldId   = (String) request.getAttribute("resourceFieldId");
+    String slotDefaultStart  = (String) request.getAttribute("slotDefaultStart");
 
-    if (toolTitle       == null) toolTitle       = "Reserva de Espacios";
-    if (adminEmail      == null) adminEmail      = "";
-    if (fromEmail       == null) fromEmail       = "";
-    if (resourceFieldId == null) resourceFieldId = "espacio";
+    if (toolTitle        == null) toolTitle        = "Reserva de Espacios";
+    if (adminEmail       == null) adminEmail       = "";
+    if (fromEmail        == null) fromEmail        = "";
+    if (resourceFieldId  == null) resourceFieldId  = "espacio";
+    if (slotDefaultStart == null) slotDefaultStart = "08:00";
 
     @SuppressWarnings("unchecked")
     List<CustomField> customFields = (List<CustomField>) request.getAttribute("customFields");
@@ -95,6 +97,14 @@
                     <small style="color:#777;">El valor de este campo se usa para detectar conflictos de reserva.</small>
                 </td>
             </tr>
+            <tr>
+                <td><label for="slotDefaultStart">Hora de inicio por defecto</label></td>
+                <td>
+                    <input type="time" id="slotDefaultStart" name="slotDefaultStart"
+                           value="<%= slotDefaultStart %>" />
+                    <small style="color:#777;">Hora que aparece preseleccionada al añadir una franja horaria.</small>
+                </td>
+            </tr>
         </table>
 
         <%-- Custom fields --%>
@@ -123,9 +133,7 @@
                                         <option value="textarea"       <%= "textarea".equals(cf.getType())       ? "selected" : "" %>>Texto largo</option>
                                         <option value="date"           <%= "date".equals(cf.getType())           ? "selected" : "" %>>Fecha</option>
                                         <option value="datetime-local" <%= "datetime-local".equals(cf.getType()) ? "selected" : "" %>>Fecha y hora</option>
-                                        <option value="time"           <%= "time".equals(cf.getType())           ? "selected" : "" %>>Hora (libre)</option>
-                                        <option value="time-slot"      <%= "time-slot".equals(cf.getType())      ? "selected" : "" %>>Hora (cada 30 min)</option>
-                                        <option value="duration-slot"  <%= "duration-slot".equals(cf.getType())  ? "selected" : "" %>>Duración (cada 30 min)</option>
+                                        <option value="time"           <%= "time".equals(cf.getType())           ? "selected" : "" %>>Hora</option>
                                         <option value="select"         <%= "select".equals(cf.getType())         ? "selected" : "" %>>Desplegable</option>
                                         <option value="checkbox-group" <%= "checkbox-group".equals(cf.getType()) ? "selected" : "" %>>Casillas múltiples</option>
                                     </select>
@@ -188,9 +196,7 @@
                                         <option value="textarea">Texto largo</option>
                                         <option value="date">Fecha</option>
                                         <option value="datetime-local">Fecha y hora</option>
-                                        <option value="time">Hora (libre)</option>
-                                        <option value="time-slot">Hora (cada 30 min)</option>
-                                        <option value="duration-slot">Duración (cada 30 min)</option>
+                                        <option value="time">Hora</option>
                                         <option value="select">Desplegable</option>
                                         <option value="checkbox-group">Casillas múltiples</option>
                                     </select>

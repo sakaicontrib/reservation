@@ -34,6 +34,8 @@
             ? (String) request.getAttribute("endFieldType") : "duration-slot";
     boolean isDuration = "duration-slot".equals(endFieldType);
     String endLabel = isDuration ? "Duración" : "Hora fin";
+    String slotDefaultStart = request.getAttribute("slotDefaultStart") != null
+            ? (String) request.getAttribute("slotDefaultStart") : "08:00";
 
     String siteId      = (String) request.getAttribute("siteId");
     String placementId = (String) request.getAttribute("placementId");
@@ -244,8 +246,9 @@ var checkConflictUrl = '<%= (siteId != null && placementId != null)
     ? "/portal/site/" + siteId + "/tool/" + placementId + "/checkConflict"
     : "" %>';
 var resourceFieldId = 'custom_<%= resourceFieldId %>';
-var endFieldType    = '<%= endFieldType %>';
-var endLabel        = '<%= endLabel %>';
+var endFieldType      = '<%= endFieldType %>';
+var endLabel          = '<%= endLabel %>';
+var slotDefaultStart  = '<%= slotDefaultStart %>';
 var slotCount       = 0;
 
 function getFieldValue(id) {
@@ -310,7 +313,7 @@ function addSlot() {
         '<div class="slot-time-part">' +
             '<label>Fecha <input type="date" name="slot_date_' + i + '" id="slot_date_' + i + '" onchange="checkSlotConflict(' + i + ')" required /></label>' +
             '<span id="slot_time_' + i + '" style="display:inline-flex; align-items:center; gap:8px;">' +
-                '<label>Inicio <input type="time" name="slot_start_' + i + '" id="slot_start_' + i + '" onchange="checkSlotConflict(' + i + ')" required /></label>' +
+                '<label>Inicio <input type="time" name="slot_start_' + i + '" id="slot_start_' + i + '" value="' + slotDefaultStart + '" onchange="checkSlotConflict(' + i + ')" required /></label>' +
                 '<label>' + endLabel + ' ' + buildEndInput(i) + '</label>' +
             '</span>' +
         '</div>' +

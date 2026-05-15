@@ -86,9 +86,11 @@ public class ReservaEspaciosServlet extends HttpServlet {
     static final String CFG_ADMIN_EMAIL    = "admin.email";
     static final String CFG_FROM_EMAIL     = "from.email";
     static final String CFG_CUSTOM_FIELDS   = "custom.fields";
-    static final String CFG_RESOURCE_FIELD  = "field.resource";
+    static final String CFG_RESOURCE_FIELD      = "field.resource";
+    static final String CFG_SLOT_DEFAULT_START  = "slot.default.start";
 
-    static final String DEFAULT_RESOURCE_FIELD = "espacio";
+    static final String DEFAULT_RESOURCE_FIELD    = "espacio";
+    static final String DEFAULT_SLOT_DEFAULT_START = "08:00";
 
     private CalendarService calendarService;
     private EmailService emailService;
@@ -494,11 +496,12 @@ public class ReservaEspaciosServlet extends HttpServlet {
         populateSakaiHead(req);
 
         Properties props = getPlacementProperties();
-        req.setAttribute("toolTitle",       props.getProperty(CFG_TOOL_TITLE,     "Reserva de Espacios"));
-        req.setAttribute("adminEmail",      props.getProperty(CFG_ADMIN_EMAIL,    ""));
-        req.setAttribute("fromEmail",       props.getProperty(CFG_FROM_EMAIL,     ""));
-        req.setAttribute("resourceFieldId", props.getProperty(CFG_RESOURCE_FIELD, DEFAULT_RESOURCE_FIELD));
-        req.setAttribute("customFields",    getCustomFields());
+        req.setAttribute("toolTitle",          props.getProperty(CFG_TOOL_TITLE,            "Reserva de Espacios"));
+        req.setAttribute("adminEmail",         props.getProperty(CFG_ADMIN_EMAIL,           ""));
+        req.setAttribute("fromEmail",          props.getProperty(CFG_FROM_EMAIL,            ""));
+        req.setAttribute("resourceFieldId",    props.getProperty(CFG_RESOURCE_FIELD,        DEFAULT_RESOURCE_FIELD));
+        req.setAttribute("slotDefaultStart",   props.getProperty(CFG_SLOT_DEFAULT_START,    DEFAULT_SLOT_DEFAULT_START));
+        req.setAttribute("customFields",       getCustomFields());
 
         resp.setContentType("text/html;charset=UTF-8");
         req.getRequestDispatcher("/options.jsp").include(req, resp);
@@ -515,10 +518,11 @@ public class ReservaEspaciosServlet extends HttpServlet {
         Placement placement = toolManager.getCurrentPlacement();
         Properties props    = placement.getPlacementConfig();
 
-        props.setProperty(CFG_TOOL_TITLE,     nvl(req.getParameter("toolTitle"),       "Reserva de Espacios"));
-        props.setProperty(CFG_ADMIN_EMAIL,    nvl(req.getParameter("adminEmail"),      ""));
-        props.setProperty(CFG_FROM_EMAIL,     nvl(req.getParameter("fromEmail"),       ""));
-        props.setProperty(CFG_RESOURCE_FIELD, nvl(req.getParameter("resourceFieldId"), DEFAULT_RESOURCE_FIELD));
+        props.setProperty(CFG_TOOL_TITLE,          nvl(req.getParameter("toolTitle"),         "Reserva de Espacios"));
+        props.setProperty(CFG_ADMIN_EMAIL,         nvl(req.getParameter("adminEmail"),        ""));
+        props.setProperty(CFG_FROM_EMAIL,          nvl(req.getParameter("fromEmail"),         ""));
+        props.setProperty(CFG_RESOURCE_FIELD,      nvl(req.getParameter("resourceFieldId"),   DEFAULT_RESOURCE_FIELD));
+        props.setProperty(CFG_SLOT_DEFAULT_START,  nvl(req.getParameter("slotDefaultStart"),  DEFAULT_SLOT_DEFAULT_START));
 
         String[] ids       = req.getParameterValues("cf_id");
         String[] labels    = req.getParameterValues("cf_label");
@@ -821,11 +825,12 @@ public class ReservaEspaciosServlet extends HttpServlet {
 
     private void populateFormAttributes(HttpServletRequest req) {
         Properties props = getPlacementProperties();
-        req.setAttribute("toolTitle",       props.getProperty(CFG_TOOL_TITLE, "Reserva de Espacios"));
-        req.setAttribute("esInstructor",    esInstructor(req));
-        req.setAttribute("customFields",    getCustomFields());
-        req.setAttribute("resourceFieldId", props.getProperty(CFG_RESOURCE_FIELD, DEFAULT_RESOURCE_FIELD));
-        req.setAttribute("endFieldType",    getEndFieldType());
+        req.setAttribute("toolTitle",        props.getProperty(CFG_TOOL_TITLE,           "Reserva de Espacios"));
+        req.setAttribute("esInstructor",     esInstructor(req));
+        req.setAttribute("customFields",     getCustomFields());
+        req.setAttribute("resourceFieldId",  props.getProperty(CFG_RESOURCE_FIELD,       DEFAULT_RESOURCE_FIELD));
+        req.setAttribute("slotDefaultStart", props.getProperty(CFG_SLOT_DEFAULT_START,   DEFAULT_SLOT_DEFAULT_START));
+        req.setAttribute("endFieldType",     getEndFieldType());
     }
 
     private Map<String, String> readCustomValues(HttpServletRequest req, List<CustomField> fields) {
