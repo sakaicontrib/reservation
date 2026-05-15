@@ -79,9 +79,8 @@ La sección **Campos del formulario** permite personalizar completamente los cam
 | Texto libre | Respuestas cortas. |
 | Texto largo | Justificaciones o descripciones. |
 | Fecha | Fechas sin hora. |
-| Fecha y hora | Fecha y hora de inicio de una franja (usar como campo de inicio). |
-| Hora (cada 30 min) | Hora de fin fija en intervalos de media hora. |
-| Duración (cada 30 min) | Duración de la reserva en intervalos de media hora (recomendado para el campo de fin). |
+| Fecha y hora | Fecha y hora específica. |
+| Hora | Hora libre (selector nativo del navegador). |
 | Desplegable | Lista de opciones predefinidas (p. ej. lista de aulas). |
 | Casillas múltiples | Selección de varias opciones (p. ej. materiales). |
 
@@ -100,3 +99,28 @@ Cada enlace solo puede usarse una vez. Tras confirmar o cancelar, ambos enlaces 
 Al confirmar, los eventos pasan a ser visibles en el calendario del sitio y el solicitante recibe un correo de confirmación. Al cancelar, los eventos quedan marcados como cancelados y el solicitante recibe un correo de notificación.
 
 > **Nota:** Para modificar una reserva ya confirmada hay que eliminar manualmente los eventos del calendario de Sakai y pedir al solicitante que envíe una nueva solicitud.
+
+---
+
+## Notas para desarrolladores
+
+### Internacionalización (i18n)
+
+La herramienta usa `ResourceLoader` de Sakai para detectar el idioma del usuario según sus preferencias de Sakai. Los ficheros de mensajes están en:
+
+```
+src/main/resources/org/sakaiproject/reserva/messages.properties       (inglés, defecto)
+src/main/resources/org/sakaiproject/reserva/messages_es.properties     (español)
+src/main/resources/org/sakaiproject/reserva/messages_eu.properties     (euskera)
+```
+
+Lecciones aprendidas durante la implementación:
+
+**1. `sakai-kernel-util` debe ir con scope `compile`, no `provided`.**
+A diferencia de `sakai-kernel-api`, este JAR no está en el lib compartido de Tomcat. Las herramientas contrib lo empaquetan dentro de su propio WAR (`WEB-INF/lib`). Declararlo como `provided` hace que Tomcat no lo encuentre al arrancar.
+
+**2. El nombre del bundle debe incluir la ruta de paquete completa.**
+Usar simplemente `"messages"` colisiona con otros `messages.properties` del classpath de Sakai. El patrón correcto es `"org.sakaiproject.reserva.messages"`, igual que hace evalsys con `"org.sakaiproject.evaluation.tool.bundle.messages"`.
+
+**3. Hay que declarar `<resources>` explícitamente en el `pom.xml`.**
+Al tener `<sourceDirectory>` personalizado en el `pom.xml`, Maven no incluye automáticamente `src/main/resources` en el build. Sin la sección `<resources>`, los ficheros de properties no llegan al WAR.
