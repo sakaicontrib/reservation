@@ -1,6 +1,7 @@
 <%@ page contentType="text/html;charset=UTF-8" %>
-<%@ page import="java.util.List, java.util.Map, java.util.Arrays, org.sakaiproject.reserva.CustomField" %>
+<%@ page import="java.util.List, java.util.Map, java.util.Arrays, org.sakaiproject.reserva.CustomField, org.sakaiproject.util.ResourceLoader" %>
 <%
+    ResourceLoader rb    = (ResourceLoader) request.getAttribute("rb");
     String sakaiHead     = (String)  request.getAttribute("sakaiHtmlHead");
     String bodyClass     = (String)  request.getAttribute("bodyClass");
     String toolTitle     = (String)  request.getAttribute("toolTitle");
@@ -11,7 +12,7 @@
     Boolean calendarMissing = (Boolean) request.getAttribute("calendarMissing");
     if (calendarMissing == null) calendarMissing = false;
 
-    if (toolTitle    == null) toolTitle    = "Reserva de Espacios";
+    if (toolTitle    == null) toolTitle    = rb.getString("tool.title.default");
     if (esInstructor == null) esInstructor = false;
     if (exito        == null) exito        = false;
 
@@ -33,7 +34,7 @@
     String endFieldType    = request.getAttribute("endFieldType") != null
             ? (String) request.getAttribute("endFieldType") : "duration-slot";
     boolean isDuration = "duration-slot".equals(endFieldType);
-    String endLabel = isDuration ? "Duración" : "Hora fin";
+    String endLabel = isDuration ? rb.getString("slot.duration") : rb.getString("slot.end");
     String slotDefaultStart = request.getAttribute("slotDefaultStart") != null
             ? (String) request.getAttribute("slotDefaultStart") : "08:00";
 
@@ -75,26 +76,25 @@
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
         <h3 style="margin:0"><%= toolTitle %></h3>
         <% if (esInstructor && siteId != null && placementId != null) { %>
-            <a href="/portal/site/<%= siteId %>/tool/<%= placementId %>/options" class="button">&#9881; Opciones</a>
+            <a href="/portal/site/<%= siteId %>/tool/<%= placementId %>/options" class="button"><%= rb.getString("nav.options") %></a>
         <% } %>
     </div>
 
     <% if (calendarMissing) { %>
         <div class="alertMessage" style="margin-bottom:12px; background:#fff3cd; border-left:4px solid #f0ad4e;">
-            <strong>Aviso:</strong> Esta herramienta requiere que el sitio tenga el <strong>Calendario</strong> añadido.
-            Por favor, añada la herramienta Calendario a este sitio antes de usar las reservas.
+            <strong><%= rb.getString("warning.calendar.title") %>:</strong> <%= rb.getString("warning.calendar.text") %>
         </div>
     <% } %>
 
     <% if (exito) { %>
         <div class="alertMessage" style="margin-bottom:12px;">
-            <%= mensajeExito != null ? mensajeExito : "Solicitud enviada correctamente." %>
+            <%= mensajeExito != null ? mensajeExito : rb.getString("success.message") %>
         </div>
     <% } %>
 
     <% if (error != null && !error.isEmpty()) { %>
         <div class="alertMessage" style="margin-bottom:12px; background:#ffeaea; border-left:4px solid #c00;">
-            <strong>Error:</strong> <%= error.replace("<","&lt;").replace("&","&amp;") %>
+            <strong><%= rb.getString("error.title") %>:</strong> <%= error.replace("<","&lt;").replace("&","&amp;") %>
         </div>
     <% } %>
 
@@ -106,15 +106,15 @@
         <table class="listHier lines nolines">
             <%-- Fixed: requester name (read-only) --%>
             <tr>
-                <td><label for="nombreField" class="field-required">Nombre</label></td>
+                <td><label for="nombreField" class="field-required"><%= rb.getString("field.name") %></label></td>
                 <td><input type="text" id="nombreField" value="<%= escNombre %>"
-                           readonly title="Nombre obtenido de su cuenta Sakai" /></td>
+                           readonly title="<%= rb.getString("field.name.title") %>" /></td>
             </tr>
             <%-- Fixed: requester email (read-only) --%>
             <tr>
-                <td><label for="emailField" class="field-required">Email</label></td>
+                <td><label for="emailField" class="field-required"><%= rb.getString("field.email") %></label></td>
                 <td><input type="text" id="emailField" value="<%= escEmail %>"
-                           readonly title="Email obtenido de su cuenta Sakai" /></td>
+                           readonly title="<%= rb.getString("field.email.title") %>" /></td>
             </tr>
 
             <%-- Dynamic custom fields. Slot section is inserted after the resource field. --%>
@@ -141,10 +141,10 @@
                                String autoValEsc   = autoVal.replace("&","&amp;").replace("<","&lt;").replace("\"","&quot;");
                     %>
                         <input type="hidden" id="<%= cfInputId %>" name="<%= cfInputId %>" value="<%= autoValEsc %>" />
-                        <input type="text" value="<%= singleOptEsc %>" readonly title="Único recurso disponible" />
+                        <input type="text" value="<%= singleOptEsc %>" readonly />
                     <%     } else { %>
                         <select id="<%= cfInputId %>" name="<%= cfInputId %>"<%= reqAttr %><%= onchange %>>
-                            <option value="">-- Seleccione --</option>
+                            <option value=""><%= rb.getString("select.placeholder") %></option>
                             <% for (String opt : cf.getOptions()) {
                                    String optEsc = opt.replace("\"","&quot;").replace("<","&lt;");
                             %>
@@ -185,7 +185,7 @@
 
                     <% } else if ("time-slot".equals(cf.getType())) { %>
                         <select id="<%= cfInputId %>" name="<%= cfInputId %>"<%= reqAttr %><%= onchange %>>
-                            <option value="">-- Seleccione hora --</option>
+                            <option value=""><%= rb.getString("select.placeholder") %></option>
                             <% for (int h = 0; h < 24; h++) {
                                    for (int m = 0; m < 60; m += 30) {
                                        String slot = String.format("%02d:%02d", h, m);
@@ -197,7 +197,7 @@
 
                     <% } else if ("duration-slot".equals(cf.getType())) { %>
                         <select id="<%= cfInputId %>" name="<%= cfInputId %>"<%= reqAttr %><%= onchange %>>
-                            <option value="">-- Seleccione duración --</option>
+                            <option value=""><%= rb.getString("select.placeholder") %></option>
                             <% int[] durMins = {30,60,90,120,150,180,210,240,270,300,330,360,390,420,450,480};
                                for (int dur : durMins) {
                                    int h = dur / 60, mo = dur % 60;
@@ -216,10 +216,10 @@
             <%-- Insert slot section right after the resource field --%>
             <% if (cf.getId().equals(resourceFieldId)) { %>
             <tr>
-                <td><span class="field-required">Franjas horarias</span></td>
+                <td><span class="field-required"><%= rb.getString("field.slots") %></span></td>
                 <td>
                     <div id="slots-container"></div>
-                    <button type="button" onclick="addSlot()" class="button" style="margin-top:6px;">+ Añadir día</button>
+                    <button type="button" onclick="addSlot()" class="button" style="margin-top:6px;"><%= rb.getString("slot.add") %></button>
                 </td>
             </tr>
             <% } %>
@@ -229,9 +229,9 @@
             <tr>
                 <td></td>
                 <td style="padding-top:10px;">
-                    <input type="submit" value="Enviar solicitud" class="active" id="submitBtn"
+                    <input type="submit" value="<%= rb.getString("submit.button") %>" class="active" id="submitBtn"
                            <%= calendarMissing ? "disabled" : "" %> />
-                    <small style="display:block; margin-top:6px; color:#777;">(*) Campos obligatorios</small>
+                    <small style="display:block; margin-top:6px; color:#777;"><%= rb.getString("field.required.hint") %></small>
                 </td>
             </tr>
         </table>
@@ -249,6 +249,15 @@ var resourceFieldId = 'custom_<%= resourceFieldId %>';
 var endFieldType      = '<%= endFieldType %>';
 var endLabel          = '<%= endLabel %>';
 var slotDefaultStart  = '<%= slotDefaultStart %>';
+var i18n = {
+    slotLabel:       '<%= rb.getString("slot.label") %>',
+    slotRemove:      '<%= rb.getString("slot.remove") %>',
+    slotDate:        '<%= rb.getString("slot.date") %>',
+    slotStart:       '<%= rb.getString("slot.start") %>',
+    slotAllday:      '<%= rb.getString("slot.allday") %>',
+    durationSelect:  '<%= rb.getString("slot.duration.select") %>',
+    conflictDefault: '<%= rb.getString("conflict.default") %>'
+};
 var slotCount       = 0;
 
 function getFieldValue(id) {
@@ -273,7 +282,7 @@ function buildEndInput(i) {
     var val = '';
     if (endFieldType === 'duration-slot') {
         var sel = '<select name="slot_end_' + i + '" id="slot_end_' + i + '" onchange="checkSlotConflict(' + i + ')" required>';
-        sel += '<option value="">-- Duración --</option>';
+        sel += '<option value="">' + i18n.durationSelect + '</option>';
         var opts = [30,60,90,120,150,180,210,240,270,300,330,360,390,420,450,480];
         opts.forEach(function(d) {
             var h = Math.floor(d/60), m = d%60;
@@ -307,18 +316,18 @@ function addSlot() {
     div.id = 'slot_row_' + i;
     div.innerHTML =
         '<div style="display:flex; align-items:center; justify-content:space-between;">' +
-            '<strong>Franja ' + (i + 1) + '</strong>' +
-            (i > 0 ? '<button type="button" onclick="removeSlot(' + i + ')" style="color:red; border:none; background:none; cursor:pointer;">✕ Eliminar</button>' : '') +
+            '<strong>' + i18n.slotLabel + ' ' + (i + 1) + '</strong>' +
+            (i > 0 ? '<button type="button" onclick="removeSlot(' + i + ')" style="color:red; border:none; background:none; cursor:pointer;">' + i18n.slotRemove + '</button>' : '') +
         '</div>' +
         '<div class="slot-time-part">' +
-            '<label>Fecha <input type="date" name="slot_date_' + i + '" id="slot_date_' + i + '" onchange="checkSlotConflict(' + i + ')" required /></label>' +
+            '<label>' + i18n.slotDate + ' <input type="date" name="slot_date_' + i + '" id="slot_date_' + i + '" onchange="checkSlotConflict(' + i + ')" required /></label>' +
             '<span id="slot_time_' + i + '" style="display:inline-flex; align-items:center; gap:8px;">' +
-                '<label>Inicio <input type="time" name="slot_start_' + i + '" id="slot_start_' + i + '" value="' + slotDefaultStart + '" onchange="checkSlotConflict(' + i + ')" required /></label>' +
+                '<label>' + i18n.slotStart + ' <input type="time" name="slot_start_' + i + '" id="slot_start_' + i + '" value="' + slotDefaultStart + '" onchange="checkSlotConflict(' + i + ')" required /></label>' +
                 '<label>' + endLabel + ' ' + buildEndInput(i) + '</label>' +
             '</span>' +
         '</div>' +
         '<div style="margin-top:4px;">' +
-            '<label><input type="checkbox" name="slot_allday_' + i + '" id="slot_allday_' + i + '" onchange="toggleAllDay(' + i + ')"> Día completo</label>' +
+            '<label><input type="checkbox" name="slot_allday_' + i + '" id="slot_allday_' + i + '" onchange="toggleAllDay(' + i + ')"> ' + i18n.slotAllday + '</label>' +
         '</div>' +
         '<div class="conflict-warning" id="slot_warning_' + i + '"></div>';
 
@@ -376,7 +385,7 @@ function checkSlotConflict(i) {
         .then(function(data) {
             if (!warning) return;
             if (data.conflicto) {
-                warning.textContent = '⚠ ' + (data.mensaje || 'Conflicto de reserva en esta franja.');
+                warning.textContent = '⚠ ' + (data.mensaje || i18n.conflictDefault);
                 warning.style.display = 'block';
                 document.getElementById('submitBtn').disabled = true;
             } else {

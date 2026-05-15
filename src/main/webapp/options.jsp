@@ -1,15 +1,16 @@
 <%@ page contentType="text/html;charset=UTF-8" %>
-<%@ page import="org.sakaiproject.reserva.CustomField, java.util.List" %>
+<%@ page import="org.sakaiproject.reserva.CustomField, org.sakaiproject.util.ResourceLoader, java.util.List" %>
 <%
-    String sakaiHead       = (String) request.getAttribute("sakaiHtmlHead");
-    String bodyClass       = (String) request.getAttribute("bodyClass");
-    String toolTitle       = (String) request.getAttribute("toolTitle");
-    String adminEmail      = (String) request.getAttribute("adminEmail");
-    String fromEmail       = (String) request.getAttribute("fromEmail");
+    ResourceLoader rb        = (ResourceLoader) request.getAttribute("rb");
+    String sakaiHead         = (String) request.getAttribute("sakaiHtmlHead");
+    String bodyClass         = (String) request.getAttribute("bodyClass");
+    String toolTitle         = (String) request.getAttribute("toolTitle");
+    String adminEmail        = (String) request.getAttribute("adminEmail");
+    String fromEmail         = (String) request.getAttribute("fromEmail");
     String resourceFieldId   = (String) request.getAttribute("resourceFieldId");
     String slotDefaultStart  = (String) request.getAttribute("slotDefaultStart");
 
-    if (toolTitle        == null) toolTitle        = "Reserva de Espacios";
+    if (toolTitle        == null) toolTitle        = rb.getString("tool.title.default");
     if (adminEmail       == null) adminEmail       = "";
     if (fromEmail        == null) fromEmail        = "";
     if (resourceFieldId  == null) resourceFieldId  = "espacio";
@@ -25,7 +26,7 @@
 <html>
 <head>
     <%= sakaiHead != null ? sakaiHead : "" %>
-    <title>Opciones – <%= toolTitle %></title>
+    <title><%= rb.getString("options.page.title") %> – <%= toolTitle %></title>
     <style>
         .opts-form table { width: 100%; max-width: 640px; }
         .opts-form td:first-child { width: 200px; font-weight: bold; padding: 6px 8px; vertical-align: top; }
@@ -43,9 +44,9 @@
 <div class="portletBody container-fluid">
 
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <h3 style="margin:0">Opciones – <%= toolTitle %></h3>
+        <h3 style="margin:0"><%= rb.getString("options.page.title") %> – <%= toolTitle %></h3>
         <% if (siteId != null && placementId != null) { %>
-            <a href="/portal/site/<%= siteId %>/tool/<%= placementId %>/tool" class="button">&#8592; Volver</a>
+            <a href="/portal/site/<%= siteId %>/tool/<%= placementId %>/tool" class="button"><%= rb.getString("options.back") %></a>
         <% } %>
     </div>
 
@@ -53,38 +54,38 @@
     <form method="post" action="">
 
         <%-- General settings --%>
-        <h4>Configuración general</h4>
+        <h4><%= rb.getString("options.general.heading") %></h4>
         <table class="listHier lines nolines">
             <tr>
-                <td><label for="toolTitle">Título de la herramienta</label></td>
+                <td><label for="toolTitle"><%= rb.getString("options.tool.title.label") %></label></td>
                 <td><input type="text" id="toolTitle" name="toolTitle"
                            value="<%= toolTitle.replace("\"","&quot;") %>" /></td>
             </tr>
             <tr>
-                <td><label for="adminEmail">Email del administrador</label></td>
+                <td><label for="adminEmail"><%= rb.getString("options.admin.email.label") %></label></td>
                 <td>
                     <input type="text" id="adminEmail" name="adminEmail"
                            value="<%= adminEmail.replace("\"","&quot;") %>"
                            placeholder="admin@universidad.es" />
-                    <small style="color:#777;">Recibe las solicitudes con el enlace de confirmación.</small>
+                    <small style="color:#777;"><%= rb.getString("options.admin.email.hint") %></small>
                 </td>
             </tr>
             <tr>
-                <td><label for="fromEmail">Email remitente</label></td>
+                <td><label for="fromEmail"><%= rb.getString("options.from.email.label") %></label></td>
                 <td>
                     <input type="text" id="fromEmail" name="fromEmail"
                            value="<%= fromEmail.replace("\"","&quot;") %>"
                            placeholder="noreply@universidad.es" />
-                    <small style="color:#777;">Si se deja en blanco se usa noreply@&lt;dominio&gt;.</small>
+                    <small style="color:#777;"><%= rb.getString("options.from.email.hint") %></small>
                 </td>
             </tr>
         </table>
 
         <%-- Slot configuration --%>
-        <h4 style="margin-top:2em;">Configuración de franjas horarias</h4>
+        <h4 style="margin-top:2em;"><%= rb.getString("options.slots.heading") %></h4>
         <table class="listHier lines nolines">
             <tr>
-                <td><label for="resourceFieldId">Campo de recurso</label></td>
+                <td><label for="resourceFieldId"><%= rb.getString("options.resource.field.label") %></label></td>
                 <td>
                     <select id="resourceFieldId" name="resourceFieldId">
                         <% for (CustomField cf : customFields) { %>
@@ -94,21 +95,21 @@
                         </option>
                         <% } %>
                     </select>
-                    <small style="color:#777;">El valor de este campo se usa para detectar conflictos de reserva.</small>
+                    <small style="color:#777;"><%= rb.getString("options.resource.field.hint") %></small>
                 </td>
             </tr>
             <tr>
-                <td><label for="slotDefaultStart">Hora de inicio por defecto</label></td>
+                <td><label for="slotDefaultStart"><%= rb.getString("options.slot.default.start.label") %></label></td>
                 <td>
                     <input type="time" id="slotDefaultStart" name="slotDefaultStart"
                            value="<%= slotDefaultStart %>" />
-                    <small style="color:#777;">Hora que aparece preseleccionada al añadir una franja horaria.</small>
+                    <small style="color:#777;"><%= rb.getString("options.slot.default.start.hint") %></small>
                 </td>
             </tr>
         </table>
 
         <%-- Custom fields --%>
-        <h4 style="margin-top:2em;">Campos del formulario</h4>
+        <h4 style="margin-top:2em;"><%= rb.getString("options.fields.heading") %></h4>
 
         <div id="custom-fields-container">
         <% for (CustomField cf : customFields) { %>
@@ -123,35 +124,35 @@
                     <td>
                         <table style="width:100%">
                             <tr>
-                                <td><label>Etiqueta</label><br/>
+                                <td><label><%= rb.getString("options.field.label") %></label><br/>
                                     <input type="text" name="cf_label"
                                            value="<%= cf.getLabel().replace("\"","&quot;") %>"
                                            style="width:180px;" /></td>
-                                <td><label>Tipo</label><br/>
+                                <td><label><%= rb.getString("options.field.type") %></label><br/>
                                     <select name="cf_type" onchange="toggleOptions(this)">
-                                        <option value="text"           <%= "text".equals(cf.getType())           ? "selected" : "" %>>Texto libre</option>
-                                        <option value="textarea"       <%= "textarea".equals(cf.getType())       ? "selected" : "" %>>Texto largo</option>
-                                        <option value="date"           <%= "date".equals(cf.getType())           ? "selected" : "" %>>Fecha</option>
-                                        <option value="datetime-local" <%= "datetime-local".equals(cf.getType()) ? "selected" : "" %>>Fecha y hora</option>
-                                        <option value="time"           <%= "time".equals(cf.getType())           ? "selected" : "" %>>Hora</option>
-                                        <option value="select"         <%= "select".equals(cf.getType())         ? "selected" : "" %>>Desplegable</option>
-                                        <option value="checkbox-group" <%= "checkbox-group".equals(cf.getType()) ? "selected" : "" %>>Casillas múltiples</option>
+                                        <option value="text"           <%= "text".equals(cf.getType())           ? "selected" : "" %>><%= rb.getString("options.field.type.text") %></option>
+                                        <option value="textarea"       <%= "textarea".equals(cf.getType())       ? "selected" : "" %>><%= rb.getString("options.field.type.textarea") %></option>
+                                        <option value="date"           <%= "date".equals(cf.getType())           ? "selected" : "" %>><%= rb.getString("options.field.type.date") %></option>
+                                        <option value="datetime-local" <%= "datetime-local".equals(cf.getType()) ? "selected" : "" %>><%= rb.getString("options.field.type.datetime") %></option>
+                                        <option value="time"           <%= "time".equals(cf.getType())           ? "selected" : "" %>><%= rb.getString("options.field.type.time") %></option>
+                                        <option value="select"         <%= "select".equals(cf.getType())         ? "selected" : "" %>><%= rb.getString("options.field.type.select") %></option>
+                                        <option value="checkbox-group" <%= "checkbox-group".equals(cf.getType()) ? "selected" : "" %>><%= rb.getString("options.field.type.checkbox") %></option>
                                     </select>
                                 </td>
                                 <td style="vertical-align:bottom;">
                                     <label>
                                         <input type="checkbox" name="cf_required"
                                                value="<%= cf.getId().replace("\"","&quot;") %>"
-                                               <%= cf.isRequired() ? "checked" : "" %> /> Obligatorio
+                                               <%= cf.isRequired() ? "checked" : "" %> /> <%= rb.getString("options.field.required") %>
                                     </label>
                                 </td>
                                 <td style="vertical-align:bottom;">
-                                    <button type="button" onclick="removeField(this)" style="color:red;">✕ Eliminar</button>
+                                    <button type="button" onclick="removeField(this)" style="color:red;"><%= rb.getString("options.field.remove") %></button>
                                 </td>
                             </tr>
                             <tr class="options-row" style="<%= ("select".equals(cf.getType()) || "checkbox-group".equals(cf.getType())) ? "" : "display:none" %>">
                                 <td colspan="4">
-                                    <label>Opciones (una por línea)</label><br/>
+                                    <label><%= rb.getString("options.field.options") %></label><br/>
                                     <textarea name="cf_options" rows="3" style="width:100%; max-width:100%"><% for (String opt : cf.getOptions()) { out.println(opt.replace("<","&lt;")); } %></textarea>
                                 </td>
                             </tr>
@@ -163,9 +164,24 @@
         <% } %>
         </div>
 
-        <button type="button" onclick="addField()" class="button" style="margin-top:0.5em;">+ Añadir campo</button>
+        <button type="button" onclick="addField()" class="button" style="margin-top:0.5em;"><%= rb.getString("options.field.add") %></button>
 
         <script>
+        var optsI18n = {
+            label:    '<%= rb.getString("options.field.label") %>',
+            type:     '<%= rb.getString("options.field.type") %>',
+            required: '<%= rb.getString("options.field.required") %>',
+            remove:   '<%= rb.getString("options.field.remove") %>',
+            options:  '<%= rb.getString("options.field.options") %>',
+            typeText:     '<%= rb.getString("options.field.type.text") %>',
+            typeTextarea: '<%= rb.getString("options.field.type.textarea") %>',
+            typeDate:     '<%= rb.getString("options.field.type.date") %>',
+            typeDatetime: '<%= rb.getString("options.field.type.datetime") %>',
+            typeTime:     '<%= rb.getString("options.field.type.time") %>',
+            typeSelect:   '<%= rb.getString("options.field.type.select") %>',
+            typeCheckbox: '<%= rb.getString("options.field.type.checkbox") %>'
+        };
+
         function addField() {
             var id = 'field_' + new Date().getTime();
             var container = document.getElementById('custom-fields-container');
@@ -179,46 +195,46 @@
 
             var table = document.createElement('table');
             table.style.width = '100%';
-            table.innerHTML = `
-                <tr>
-                    <td style="width:30px; text-align:center; vertical-align:middle;">
-                        <button type="button" onclick="moveUp(this)" style="display:block;width:100%">▲</button>
-                        <button type="button" onclick="moveDown(this)" style="display:block;width:100%">▼</button>
-                    </td>
-                    <td>
-                        <table style="width:100%">
-                            <tr>
-                                <td><label>Etiqueta</label><br/>
-                                    <input type="text" name="cf_label" value="" style="width:180px;" /></td>
-                                <td><label>Tipo</label><br/>
-                                    <select name="cf_type" onchange="toggleOptions(this)">
-                                        <option value="text">Texto libre</option>
-                                        <option value="textarea">Texto largo</option>
-                                        <option value="date">Fecha</option>
-                                        <option value="datetime-local">Fecha y hora</option>
-                                        <option value="time">Hora</option>
-                                        <option value="select">Desplegable</option>
-                                        <option value="checkbox-group">Casillas múltiples</option>
-                                    </select>
-                                </td>
-                                <td style="vertical-align:bottom;">
-                                    <label>
-                                        <input type="checkbox" name="cf_required" value="${id}" /> Obligatorio
-                                    </label>
-                                </td>
-                                <td style="vertical-align:bottom;">
-                                    <button type="button" onclick="removeField(this)" style="color:red;">✕ Eliminar</button>
-                                </td>
-                            </tr>
-                            <tr class="options-row" style="display:none">
-                                <td colspan="4">
-                                    <label>Opciones (una por línea)</label><br/>
-                                    <textarea name="cf_options" rows="3" style="width:100%; max-width:100%"></textarea>
-                                </td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>`;
+            table.innerHTML =
+                '<tr>' +
+                    '<td style="width:30px; text-align:center; vertical-align:middle;">' +
+                        '<button type="button" onclick="moveUp(this)" style="display:block;width:100%">▲</button>' +
+                        '<button type="button" onclick="moveDown(this)" style="display:block;width:100%">▼</button>' +
+                    '</td>' +
+                    '<td>' +
+                        '<table style="width:100%">' +
+                            '<tr>' +
+                                '<td><label>' + optsI18n.label + '</label><br/>' +
+                                    '<input type="text" name="cf_label" value="" style="width:180px;" /></td>' +
+                                '<td><label>' + optsI18n.type + '</label><br/>' +
+                                    '<select name="cf_type" onchange="toggleOptions(this)">' +
+                                        '<option value="text">' + optsI18n.typeText + '</option>' +
+                                        '<option value="textarea">' + optsI18n.typeTextarea + '</option>' +
+                                        '<option value="date">' + optsI18n.typeDate + '</option>' +
+                                        '<option value="datetime-local">' + optsI18n.typeDatetime + '</option>' +
+                                        '<option value="time">' + optsI18n.typeTime + '</option>' +
+                                        '<option value="select">' + optsI18n.typeSelect + '</option>' +
+                                        '<option value="checkbox-group">' + optsI18n.typeCheckbox + '</option>' +
+                                    '</select>' +
+                                '</td>' +
+                                '<td style="vertical-align:bottom;">' +
+                                    '<label>' +
+                                        '<input type="checkbox" name="cf_required" value="' + id + '" /> ' + optsI18n.required +
+                                    '</label>' +
+                                '</td>' +
+                                '<td style="vertical-align:bottom;">' +
+                                    '<button type="button" onclick="removeField(this)" style="color:red;">' + optsI18n.remove + '</button>' +
+                                '</td>' +
+                            '</tr>' +
+                            '<tr class="options-row" style="display:none">' +
+                                '<td colspan="4">' +
+                                    '<label>' + optsI18n.options + '</label><br/>' +
+                                    '<textarea name="cf_options" rows="3" style="width:100%; max-width:100%"></textarea>' +
+                                '</td>' +
+                            '</tr>' +
+                        '</table>' +
+                    '</td>' +
+                '</tr>';
             div.appendChild(table);
             container.appendChild(div);
         }
@@ -245,7 +261,7 @@
         </script>
 
         <div style="margin-top:1.5em;">
-            <input type="submit" value="Guardar opciones" class="active" />
+            <input type="submit" value="<%= rb.getString("options.save") %>" class="active" />
         </div>
 
     </form>

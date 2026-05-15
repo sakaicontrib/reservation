@@ -1,6 +1,7 @@
 <%@ page contentType="text/html;charset=UTF-8" %>
-<%@ page import="org.sakaiproject.reserva.CustomField, java.util.List, java.util.Map" %>
+<%@ page import="org.sakaiproject.reserva.CustomField, org.sakaiproject.util.ResourceLoader, java.util.List, java.util.Map" %>
 <%
+    ResourceLoader rb    = (ResourceLoader) request.getAttribute("rb");
     String sakaiHead     = (String)  request.getAttribute("sakaiHtmlHead");
     String bodyClass     = (String)  request.getAttribute("bodyClass");
     String toolTitle     = (String)  request.getAttribute("toolTitle");
@@ -8,7 +9,7 @@
     String  confirmError = (String)  request.getAttribute("confirmError");
     String  confirmMsg   = (String)  request.getAttribute("confirmMensaje");
 
-    if (toolTitle    == null) toolTitle    = "Reserva de Espacios";
+    if (toolTitle    == null) toolTitle    = rb.getString("tool.title.default");
     if (confirmExito == null) confirmExito = false;
 
     @SuppressWarnings("unchecked")
@@ -29,20 +30,20 @@
 <html>
 <head>
     <%= sakaiHead != null ? sakaiHead : "" %>
-    <title>Confirmar Reserva – <%= toolTitle %></title>
+    <title><%= rb.getString("confirm.page.title") %> – <%= toolTitle %></title>
 </head>
 <body class="<%= bodyClass != null ? bodyClass : "" %>">
 <div class="portletBody container-fluid">
 
-    <h3><%= toolTitle %> – Confirmación</h3>
+    <h3><%= toolTitle %> – <%= rb.getString("confirm.heading") %></h3>
 
     <% if (confirmExito) { %>
         <div class="alertMessage" style="background:#e6ffe6; border-left:4px solid #090;">
-            <strong>&#10003; Reserva confirmada.</strong><br/>
-            <%= confirmMsg != null ? confirmMsg.replace("<","&lt;") : "La reserva ha sido confirmada y se ha notificado al solicitante." %>
+            <strong><%= rb.getString("confirm.success.label") %></strong><br/>
+            <%= confirmMsg != null ? confirmMsg.replace("<","&lt;") : rb.getString("confirm.success.default") %>
         </div>
         <% if (!slotDescs.isEmpty()) { %>
-        <h4 style="margin-top:1em;">Franjas confirmadas</h4>
+        <h4 style="margin-top:1em;"><%= rb.getString("confirm.slots.heading") %></h4>
         <ul style="margin:0 0 0 1.2em; padding:0;">
             <% for (String desc : slotDescs) { %>
                 <li><%= desc.replace("<","&lt;").replace("&","&amp;") %></li>
@@ -50,7 +51,7 @@
         </ul>
         <% } %>
         <% if (!customFields.isEmpty()) { %>
-        <h4 style="margin-top:1em;">Campos adicionales</h4>
+        <h4 style="margin-top:1em;"><%= rb.getString("confirm.fields.heading") %></h4>
         <table class="listHier lines nolines" style="max-width:500px;">
             <% for (CustomField cf : customFields) {
                    String val = customValues.getOrDefault(cf.getId(), "");
@@ -66,23 +67,23 @@
         <% if (siteId != null && placementId != null) { %>
             <p style="margin-top:14px;">
                 <a href="/portal/site/<%= siteId %>/tool/<%= placementId %>/tool" class="button">
-                    &#8592; Volver al formulario
+                    <%= rb.getString("confirm.back") %>
                 </a>
             </p>
         <% } %>
     <% } else if (confirmError != null && !confirmError.isEmpty()) { %>
         <div class="alertMessage" style="background:#ffeaea; border-left:4px solid #c00;">
-            <strong>&#10007; Error:</strong> <%= confirmError.replace("<","&lt;").replace("&","&amp;") %>
+            <strong>&#10007; <%= rb.getString("error.title") %>:</strong> <%= confirmError.replace("<","&lt;").replace("&","&amp;") %>
         </div>
         <% if (siteId != null && placementId != null) { %>
             <p style="margin-top:14px;">
                 <a href="/portal/site/<%= siteId %>/tool/<%= placementId %>/tool" class="button">
-                    &#8592; Volver al formulario
+                    <%= rb.getString("confirm.back") %>
                 </a>
             </p>
         <% } %>
     <% } else { %>
-        <p>Procesando la confirmación...</p>
+        <p><%= rb.getString("confirm.processing") %></p>
     <% } %>
 
 </div>

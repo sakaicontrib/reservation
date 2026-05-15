@@ -44,6 +44,7 @@ import org.sakaiproject.tool.api.ToolManager;
 import org.sakaiproject.user.api.User;
 import org.sakaiproject.user.api.UserDirectoryService;
 import org.sakaiproject.util.RequestFilter;
+import org.sakaiproject.util.ResourceLoader;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -62,6 +63,9 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class ReservaEspaciosServlet extends HttpServlet {
+
+    private static final ResourceLoader rb = new ResourceLoader("org.sakaiproject.reserva.messages",
+            ReservaEspaciosServlet.class.getClassLoader());
 
     // Calendar event property keys
     static final String PROP_TOKEN              = "reserva.token";
@@ -208,7 +212,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
         // Validate required custom fields
         for (CustomField cf : customFields) {
             if (cf.isRequired() && customValues.getOrDefault(cf.getId(), "").isEmpty()) {
-                req.setAttribute("error", "El campo \"" + cf.getLabel() + "\" es obligatorio.");
+                req.setAttribute("error", rb.getFormattedMessage("error.field.required", cf.getLabel()));
                 resp.setContentType("text/html;charset=UTF-8");
                 req.getRequestDispatcher("/index.jsp").include(req, resp);
                 return;
@@ -217,7 +221,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
 
         String resource = customValues.getOrDefault(resourceFieldId, "");
         if (resource.isEmpty()) {
-            req.setAttribute("error", "Debe indicar el recurso a reservar.");
+            req.setAttribute("error", rb.getString("error.resource.required"));
             resp.setContentType("text/html;charset=UTF-8");
             req.getRequestDispatcher("/index.jsp").include(req, resp);
             return;
@@ -226,7 +230,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
         // Read slots
         int slotCount = parseIntSafe(nvl(req.getParameter("slot_count"), "0"), 0);
         if (slotCount < 1) {
-            req.setAttribute("error", "Debe añadir al menos una franja horaria.");
+            req.setAttribute("error", rb.getString("error.slots.required"));
             resp.setContentType("text/html;charset=UTF-8");
             req.getRequestDispatcher("/index.jsp").include(req, resp);
             return;
@@ -247,19 +251,19 @@ public class ReservaEspaciosServlet extends HttpServlet {
             try {
                 if (allDay) {
                     rango = calcularRangoAllDay(date);
-                    desc  = LocalDate.parse(date).format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + " (día completo)";
+                    desc  = LocalDate.parse(date).format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + " " + rb.getString("slot.allday.desc");
                 } else {
                     String startTime = nvl(req.getParameter("slot_start_" + i), "");
                     String endValue  = nvl(req.getParameter("slot_end_" + i),   "");
                     if (startTime.isEmpty() || endValue.isEmpty()) {
-                        req.setAttribute("error", "La franja " + (i + 1) + " necesita hora de inicio y duración.");
+                        req.setAttribute("error", rb.getFormattedMessage("error.slot.start.duration", i + 1));
                         resp.setContentType("text/html;charset=UTF-8");
                         req.getRequestDispatcher("/index.jsp").include(req, resp);
                         return;
                     }
                     rango = calcularRango(date + "T" + startTime, endValue, endFieldType);
                     if (rango[1] <= rango[0]) {
-                        req.setAttribute("error", "La duración debe ser mayor que cero en la franja " + (i + 1) + ".");
+                        req.setAttribute("error", rb.getFormattedMessage("error.slot.duration.zero", i + 1));
                         resp.setContentType("text/html;charset=UTF-8");
                         req.getRequestDispatcher("/index.jsp").include(req, resp);
                         return;
@@ -267,7 +271,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
                     desc = formatearFecha(rango[0]) + " – " + formatearFecha(rango[1]);
                 }
             } catch (DateTimeParseException | NumberFormatException e) {
-                req.setAttribute("error", "Formato de fecha u hora no válido en la franja " + (i + 1) + ".");
+                req.setAttribute("error", rb.getFormattedMessage("error.slot.datetime.format", i + 1));
                 resp.setContentType("text/html;charset=UTF-8");
                 req.getRequestDispatcher("/index.jsp").include(req, resp);
                 return;
@@ -277,7 +281,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
         }
 
         if (rangos.isEmpty()) {
-            req.setAttribute("error", "Debe añadir al menos una franja horaria válida.");
+            req.setAttribute("error", rb.getString("error.slots.valid"));
             resp.setContentType("text/html;charset=UTF-8");
             req.getRequestDispatcher("/index.jsp").include(req, resp);
             return;
@@ -288,7 +292,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
         for (int i = 0; i < rangos.size(); i++) {
             String conflicto = comprobarConflicto(siteId, resource, rangos.get(i)[0], rangos.get(i)[1]);
             if (conflicto != null) {
-                req.setAttribute("error", "Franja " + (i + 1) + ": " + conflicto);
+                req.setAttribute("error", rb.getFormattedMessage("error.slot.conflict", i + 1, conflicto));
                 resp.setContentType("text/html;charset=UTF-8");
                 req.getRequestDispatcher("/index.jsp").include(req, resp);
                 return;
@@ -308,7 +312,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
                     isLead ? customValuesJson : "{}",
                     isLead, groupId, slotDescsJson, customFields);
             if (eventId == null) {
-                req.setAttribute("error", "Error al crear la reserva. Inténtelo de nuevo.");
+                req.setAttribute("error", rb.getString("error.create.reservation"));
                 resp.setContentType("text/html;charset=UTF-8");
                 req.getRequestDispatcher("/index.jsp").include(req, resp);
                 return;
@@ -328,11 +332,11 @@ public class ReservaEspaciosServlet extends HttpServlet {
 
         String adminEmail = props.getProperty(CFG_ADMIN_EMAIL, "");
         String fromEmail  = getFromEmail(props);
-        String toolTitle  = props.getProperty(CFG_TOOL_TITLE, "Reserva de Espacios");
+        String toolTitle  = props.getProperty(CFG_TOOL_TITLE, rb.getString("tool.title.default"));
 
         if (!adminEmail.isEmpty()) {
             try {
-                String asunto = "[" + toolTitle + "] Nueva solicitud: " + resource;
+                String asunto = rb.getFormattedMessage("email.admin.subject", toolTitle, resource);
                 String cuerpo = buildEmailAdmin(nombre, email, resource, confirmUrl, cancelUrl,
                         customFields, customValues, slotDescs);
                 emailService.send(fromEmail, adminEmail, asunto, cuerpo, null, null, null);
@@ -343,7 +347,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
 
         if (!email.isEmpty()) {
             try {
-                String asunto = "[" + toolTitle + "] Solicitud recibida: " + resource;
+                String asunto = rb.getFormattedMessage("email.ack.subject", toolTitle, resource);
                 String cuerpo = buildEmailAcuse(nombre, resource,
                         customFields, customValues, slotDescs);
                 emailService.send(fromEmail, email, asunto, cuerpo, null, null, null);
@@ -353,8 +357,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
         }
 
         req.setAttribute("exito", true);
-        req.setAttribute("mensajeExito",
-                "Su solicitud ha sido registrada. Recibirá un correo de confirmación cuando sea aprobada.");
+        req.setAttribute("mensajeExito", rb.getString("success.message"));
         resp.setContentType("text/html;charset=UTF-8");
         req.getRequestDispatcher("/index.jsp").include(req, resp);
     }
@@ -368,20 +371,20 @@ public class ReservaEspaciosServlet extends HttpServlet {
         populateSakaiHead(req);
 
         Properties props = getPlacementProperties();
-        req.setAttribute("toolTitle", props.getProperty(CFG_TOOL_TITLE, "Reserva de Espacios"));
+        req.setAttribute("toolTitle", props.getProperty(CFG_TOOL_TITLE, rb.getString("tool.title.default")));
 
         String eventId = nvl(req.getParameter("eventId"), "");
         String token   = nvl(req.getParameter("token"),   "");
 
         if (eventId.isEmpty() || token.isEmpty()) {
-            req.setAttribute("confirmError", "Enlace de confirmación no válido.");
+            req.setAttribute("confirmError", rb.getString("error.confirm.invalid"));
             resp.setContentType("text/html;charset=UTF-8");
             req.getRequestDispatcher("/confirm.jsp").include(req, resp);
             return;
         }
 
         if (!esInstructor(req)) {
-            req.setAttribute("confirmError", "No tiene permisos para confirmar reservas en este sitio.");
+            req.setAttribute("confirmError", rb.getString("error.confirm.permission"));
             resp.setContentType("text/html;charset=UTF-8");
             req.getRequestDispatcher("/confirm.jsp").include(req, resp);
             return;
@@ -396,7 +399,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
 
         if (resultado == null) {
             req.setAttribute("confirmExito",   true);
-            req.setAttribute("confirmMensaje", "La reserva ha sido confirmada correctamente.");
+            req.setAttribute("confirmMensaje", rb.getString("confirm.success.message"));
             req.setAttribute("customFields",   customFields);
             req.setAttribute("customValues",   customValues);
             req.setAttribute("slotDescs",      slotDescs);
@@ -417,20 +420,20 @@ public class ReservaEspaciosServlet extends HttpServlet {
         populateSakaiHead(req);
 
         Properties props = getPlacementProperties();
-        req.setAttribute("toolTitle", props.getProperty(CFG_TOOL_TITLE, "Reserva de Espacios"));
+        req.setAttribute("toolTitle", props.getProperty(CFG_TOOL_TITLE, rb.getString("tool.title.default")));
 
         String eventId = nvl(req.getParameter("eventId"), "");
         String token   = nvl(req.getParameter("token"),   "");
 
         if (eventId.isEmpty() || token.isEmpty()) {
-            req.setAttribute("cancelError", "Enlace de cancelación no válido.");
+            req.setAttribute("cancelError", rb.getString("error.cancel.invalid"));
             resp.setContentType("text/html;charset=UTF-8");
             req.getRequestDispatcher("/cancel.jsp").include(req, resp);
             return;
         }
 
         if (!esInstructor(req)) {
-            req.setAttribute("cancelError", "No tiene permisos para cancelar reservas en este sitio.");
+            req.setAttribute("cancelError", rb.getString("error.cancel.permission"));
             resp.setContentType("text/html;charset=UTF-8");
             req.getRequestDispatcher("/cancel.jsp").include(req, resp);
             return;
@@ -440,7 +443,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
 
         if (resultado == null) {
             req.setAttribute("cancelExito", true);
-            req.setAttribute("cancelMensaje", "La reserva ha sido cancelada correctamente.");
+            req.setAttribute("cancelMensaje", rb.getString("cancel.success.message"));
         } else {
             req.setAttribute("cancelError", resultado);
         }
@@ -496,7 +499,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
         populateSakaiHead(req);
 
         Properties props = getPlacementProperties();
-        req.setAttribute("toolTitle",          props.getProperty(CFG_TOOL_TITLE,            "Reserva de Espacios"));
+        req.setAttribute("toolTitle",          props.getProperty(CFG_TOOL_TITLE,            rb.getString("tool.title.default")));
         req.setAttribute("adminEmail",         props.getProperty(CFG_ADMIN_EMAIL,           ""));
         req.setAttribute("fromEmail",          props.getProperty(CFG_FROM_EMAIL,            ""));
         req.setAttribute("resourceFieldId",    props.getProperty(CFG_RESOURCE_FIELD,        DEFAULT_RESOURCE_FIELD));
@@ -518,7 +521,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
         Placement placement = toolManager.getCurrentPlacement();
         Properties props    = placement.getPlacementConfig();
 
-        props.setProperty(CFG_TOOL_TITLE,          nvl(req.getParameter("toolTitle"),         "Reserva de Espacios"));
+        props.setProperty(CFG_TOOL_TITLE,          nvl(req.getParameter("toolTitle"),         rb.getString("tool.title.default")));
         props.setProperty(CFG_ADMIN_EMAIL,         nvl(req.getParameter("adminEmail"),        ""));
         props.setProperty(CFG_FROM_EMAIL,          nvl(req.getParameter("fromEmail"),         ""));
         props.setProperty(CFG_RESOURCE_FIELD,      nvl(req.getParameter("resourceFieldId"),   DEFAULT_RESOURCE_FIELD));
@@ -576,8 +579,8 @@ public class ReservaEspaciosServlet extends HttpServlet {
                 if (resource.equals(ev.getLocation())) {
                     String iniStr = formatearFecha(ev.getRange().firstTime().getTime());
                     String finStr = formatearFecha(ev.getRange().lastTime().getTime());
-                    return "El recurso \"" + resource + "\" ya está reservado de " + iniStr
-                            + " a " + finStr + " (" + ev.getDisplayName() + ").";
+                    return rb.getFormattedMessage("conflict.resource.busy",
+                            resource, iniStr, finStr, ev.getDisplayName());
                 }
             }
             return null;
@@ -673,17 +676,17 @@ public class ReservaEspaciosServlet extends HttpServlet {
             String storedToken = edit.getField(PROP_TOKEN);
             if (!token.equals(storedToken)) {
                 cal.cancelEvent(edit);
-                return "El enlace de confirmación no es válido o ha caducado.";
+                return rb.getString("error.confirm.token");
             }
 
             String estado = edit.getField(PROP_ESTADO);
             if (ESTADO_CONFIRMADO.equals(estado)) {
                 cal.cancelEvent(edit);
-                return "Esta reserva ya fue confirmada anteriormente.";
+                return rb.getString("error.confirm.already.confirmed");
             }
             if (ESTADO_CANCELADO.equals(estado)) {
                 cal.cancelEvent(edit);
-                return "Esta reserva fue cancelada y no puede confirmarse.";
+                return rb.getString("error.confirm.already.cancelled");
             }
 
             String solEmail      = nvl(edit.getField(PROP_SOLICITANTE_EMAIL),  "");
@@ -693,7 +696,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
             String slotDescsJson = nvl(edit.getField(PROP_SLOT_DESCS), "[]");
 
             // Confirm lead event
-            edit.setDisplayName("[CONFIRMADA] Reserva de " + resource);
+            edit.setDisplayName(rb.getFormattedMessage("event.title.confirmed", resource));
             edit.setType(EVENT_TYPE_CONFIRMED);
             edit.setField(PROP_ESTADO, ESTADO_CONFIRMADO);
             edit.setField(PROP_TOKEN,  "");
@@ -705,7 +708,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
                 if (gId.isEmpty() || gId.equals(eventId)) continue;
                 try {
                     CalendarEventEdit gEdit = cal.getEditEvent(gId, CalendarService.EVENT_MODIFY_CALENDAR);
-                    gEdit.setDisplayName("[CONFIRMADA] Reserva de " + resource);
+                    gEdit.setDisplayName(rb.getFormattedMessage("event.title.confirmed", resource));
                     gEdit.setType(EVENT_TYPE_CONFIRMED);
                     gEdit.setField(PROP_ESTADO, ESTADO_CONFIRMADO);
                     cal.commitEvent(gEdit);
@@ -718,9 +721,9 @@ public class ReservaEspaciosServlet extends HttpServlet {
             if (!solEmail.isEmpty()) {
                 try {
                     Properties props = getPlacementProperties();
-                    String toolTitle = props.getProperty(CFG_TOOL_TITLE, "Reserva de Espacios");
+                    String toolTitle = props.getProperty(CFG_TOOL_TITLE, rb.getString("tool.title.default"));
                     List<String> slotDescs = parseSlotDescs(slotDescsJson);
-                    String asunto = "[" + toolTitle + "] Reserva confirmada: " + resource;
+                    String asunto = rb.getFormattedMessage("email.confirm.subject", toolTitle, resource);
                     String cuerpo = buildEmailConfirmacion(solNombre, resource, slotDescs);
                     emailService.send(getFromEmail(props), solEmail, asunto, cuerpo, null, null, null);
                 } catch (Exception e) {
@@ -731,11 +734,11 @@ public class ReservaEspaciosServlet extends HttpServlet {
             return null;
 
         } catch (IdUnusedException e) {
-            return "Reserva no encontrada. El enlace puede haber expirado.";
+            return rb.getString("error.confirm.not.found");
         } catch (InUseException e) {
-            return "La reserva está siendo procesada. Inténtelo de nuevo.";
+            return rb.getString("error.confirm.in.progress");
         } catch (PermissionException e) {
-            return "Sin permisos para confirmar esta reserva.";
+            return rb.getString("error.confirm.no.permission");
         } finally {
             securityService.popAdvisor(advisor);
         }
@@ -753,17 +756,17 @@ public class ReservaEspaciosServlet extends HttpServlet {
             String storedToken = edit.getField(PROP_TOKEN);
             if (!token.equals(storedToken)) {
                 cal.cancelEvent(edit);
-                return "El enlace de cancelación no es válido o ya ha sido utilizado.";
+                return rb.getString("error.cancel.token");
             }
 
             String estado = edit.getField(PROP_ESTADO);
             if (ESTADO_CANCELADO.equals(estado)) {
                 cal.cancelEvent(edit);
-                return "Esta reserva ya fue cancelada anteriormente.";
+                return rb.getString("error.cancel.already.cancelled");
             }
             if (ESTADO_CONFIRMADO.equals(estado)) {
                 cal.cancelEvent(edit);
-                return "Esta reserva ya fue confirmada y no puede cancelarse mediante este enlace.";
+                return rb.getString("error.cancel.already.confirmed");
             }
 
             String solEmail      = nvl(edit.getField(PROP_SOLICITANTE_EMAIL),  "");
@@ -773,7 +776,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
             String slotDescsJson = nvl(edit.getField(PROP_SLOT_DESCS), "[]");
 
             // Cancel lead event
-            edit.setDisplayName("[CANCELADA] Reserva de " + resource);
+            edit.setDisplayName(rb.getFormattedMessage("event.title.cancelled", resource));
             edit.setField(PROP_ESTADO, ESTADO_CANCELADO);
             edit.setField(PROP_TOKEN,  "");
             cal.commitEvent(edit);
@@ -796,9 +799,9 @@ public class ReservaEspaciosServlet extends HttpServlet {
             if (!solEmail.isEmpty()) {
                 try {
                     Properties props = getPlacementProperties();
-                    String toolTitle = props.getProperty(CFG_TOOL_TITLE, "Reserva de Espacios");
+                    String toolTitle = props.getProperty(CFG_TOOL_TITLE, rb.getString("tool.title.default"));
                     List<String> slotDescs = parseSlotDescs(slotDescsJson);
-                    String asunto = "[" + toolTitle + "] Reserva cancelada: " + resource;
+                    String asunto = rb.getFormattedMessage("email.cancel.subject", toolTitle, resource);
                     String cuerpo = buildEmailCancelacion(solNombre, resource, slotDescs);
                     emailService.send(getFromEmail(props), solEmail, asunto, cuerpo, null, null, null);
                 } catch (Exception e) {
@@ -809,11 +812,11 @@ public class ReservaEspaciosServlet extends HttpServlet {
             return null;
 
         } catch (IdUnusedException e) {
-            return "Reserva no encontrada. El enlace puede haber expirado.";
+            return rb.getString("error.cancel.not.found");
         } catch (InUseException e) {
-            return "La reserva está siendo procesada. Inténtelo de nuevo.";
+            return rb.getString("error.cancel.in.progress");
         } catch (PermissionException e) {
-            return "Sin permisos para cancelar esta reserva.";
+            return rb.getString("error.cancel.no.permission");
         } finally {
             securityService.popAdvisor(advisor);
         }
@@ -825,7 +828,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
 
     private void populateFormAttributes(HttpServletRequest req) {
         Properties props = getPlacementProperties();
-        req.setAttribute("toolTitle",        props.getProperty(CFG_TOOL_TITLE,           "Reserva de Espacios"));
+        req.setAttribute("toolTitle",        props.getProperty(CFG_TOOL_TITLE,           rb.getString("tool.title.default")));
         req.setAttribute("esInstructor",     esInstructor(req));
         req.setAttribute("customFields",     getCustomFields());
         req.setAttribute("resourceFieldId",  props.getProperty(CFG_RESOURCE_FIELD,       DEFAULT_RESOURCE_FIELD));
@@ -924,6 +927,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
     private void populateSakaiHead(HttpServletRequest req) {
         req.setAttribute("sakaiHtmlHead", (String) req.getAttribute("sakai.html.head"));
         req.setAttribute("bodyClass",     (String) req.getAttribute("sakai.html.body.class"));
+        req.setAttribute("rb", rb);
         Placement placement = toolManager.getCurrentPlacement();
         if (placement != null) {
             req.setAttribute("siteId",      placement.getContext());
@@ -1078,17 +1082,17 @@ public class ReservaEspaciosServlet extends HttpServlet {
             String confirmUrl, String cancelUrl, List<CustomField> fields,
             Map<String, String> values, List<String> slotDescs) {
         StringBuilder sb = new StringBuilder();
-        sb.append("Se ha recibido una nueva solicitud de reserva.\n\n");
-        sb.append("Solicitante : ").append(nombre).append("\n");
-        sb.append("Email       : ").append(email).append("\n");
-        sb.append("Recurso     : ").append(resource).append("\n");
+        sb.append(rb.getString("email.admin.intro")).append("\n\n");
+        sb.append(rb.getString("email.label.requester")).append(" : ").append(nombre).append("\n");
+        sb.append(rb.getString("email.label.email")).append("       : ").append(email).append("\n");
+        sb.append(rb.getString("email.label.resource")).append("     : ").append(resource).append("\n");
         appendSlotDescs(sb, slotDescs);
         appendCustomValues(sb, fields, values);
-        sb.append("\nPara CONFIRMAR la reserva acceda al siguiente enlace:\n");
+        sb.append("\n").append(rb.getString("email.admin.confirm.link")).append("\n");
         sb.append(confirmUrl).append("\n\n");
-        sb.append("Para CANCELAR la reserva acceda al siguiente enlace:\n");
+        sb.append(rb.getString("email.admin.cancel.link")).append("\n");
         sb.append(cancelUrl).append("\n\n");
-        sb.append("(Deberá estar autenticado en Sakai para confirmar o cancelar la reserva)\n");
+        sb.append(rb.getString("email.admin.auth.note")).append("\n");
         return sb.toString();
     }
 
@@ -1096,39 +1100,40 @@ public class ReservaEspaciosServlet extends HttpServlet {
             List<CustomField> fields, Map<String, String> values,
             List<String> slotDescs) {
         StringBuilder sb = new StringBuilder();
-        sb.append("Estimado/a ").append(nombre).append(",\n\n");
-        sb.append("Hemos recibido su solicitud de reserva. Le informaremos\n");
-        sb.append("por correo electrónico cuando sea confirmada.\n\n");
-        sb.append("Recurso : ").append(resource).append("\n");
+        sb.append(rb.getFormattedMessage("email.ack.greeting", nombre)).append("\n\n");
+        sb.append(rb.getString("email.ack.text")).append("\n\n");
+        sb.append(rb.getString("email.label.resource")).append(" : ").append(resource).append("\n");
         appendSlotDescs(sb, slotDescs);
         appendCustomValues(sb, fields, values);
-        sb.append("\nGracias por usar el sistema de reservas.\n");
+        sb.append("\n").append(rb.getString("email.ack.thanks")).append("\n");
         return sb.toString();
     }
 
     private String buildEmailCancelacion(String nombre, String resource, List<String> slotDescs) {
         StringBuilder sb = new StringBuilder();
-        sb.append("Estimado/a ").append(nombre).append(",\n\n");
-        sb.append("Su solicitud de reserva ha sido CANCELADA.\n\n");
-        sb.append("  Recurso : ").append(resource).append("\n");
+        sb.append(rb.getFormattedMessage("email.cancel.greeting", nombre)).append("\n\n");
+        sb.append(rb.getString("email.cancel.text")).append("\n\n");
+        sb.append("  ").append(rb.getString("email.label.resource")).append(" : ").append(resource).append("\n");
         appendSlotDescs(sb, slotDescs);
-        sb.append("\nSi tiene alguna duda, contacte con el administrador del sitio.\n");
+        sb.append("\n").append(rb.getString("email.cancel.contact")).append("\n");
         return sb.toString();
     }
 
     private String buildEmailConfirmacion(String nombre, String resource, List<String> slotDescs) {
         StringBuilder sb = new StringBuilder();
-        sb.append("Estimado/a ").append(nombre).append(",\n\n");
-        sb.append("Su reserva ha sido CONFIRMADA.\n\n");
-        sb.append("  Recurso : ").append(resource).append("\n");
+        sb.append(rb.getFormattedMessage("email.confirm.greeting", nombre)).append("\n\n");
+        sb.append(rb.getString("email.confirm.text")).append("\n\n");
+        sb.append("  ").append(rb.getString("email.label.resource")).append(" : ").append(resource).append("\n");
         appendSlotDescs(sb, slotDescs);
-        sb.append("\nGracias por usar el sistema de reservas.\n");
+        sb.append("\n").append(rb.getString("email.confirm.thanks")).append("\n");
         return sb.toString();
     }
 
     private void appendSlotDescs(StringBuilder sb, List<String> slotDescs) {
         if (slotDescs == null || slotDescs.isEmpty()) return;
-        sb.append(slotDescs.size() == 1 ? "  Fecha     : " : "  Franjas   :\n");
+        String dateLabel  = rb.getString("email.label.date");
+        String slotsLabel = rb.getString("email.label.slots");
+        sb.append(slotDescs.size() == 1 ? "  " + dateLabel + "     : " : "  " + slotsLabel + "   :\n");
         for (String desc : slotDescs) {
             sb.append(slotDescs.size() == 1 ? desc : "    - " + desc).append("\n");
         }

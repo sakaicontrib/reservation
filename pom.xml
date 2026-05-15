@@ -18,6 +18,11 @@
 
     <build>
         <sourceDirectory>src/main/java</sourceDirectory>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -55,6 +60,13 @@
             <artifactId>sakai-component-manager</artifactId>
             <version>25.0</version>
             <scope>provided</scope>
+        </dependency>
+
+        <!-- Kernel Util: ResourceLoader (i18n) -->
+        <dependency>
+            <groupId>org.sakaiproject.kernel</groupId>
+            <artifactId>sakai-kernel-util</artifactId>
+            <version>25.0</version>
         </dependency>
 
         <!-- Calendar API -->
