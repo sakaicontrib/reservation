@@ -1,5 +1,5 @@
 <%@ page contentType="text/html;charset=UTF-8" %>
-<%@ page import="org.sakaiproject.reserva.CustomField, org.sakaiproject.util.ResourceLoader, java.util.List" %>
+<%@ page import="org.sakaiproject.reservation.CustomField, org.sakaiproject.util.ResourceLoader, java.util.List" %>
 <%
     ResourceLoader rb        = (ResourceLoader) request.getAttribute("rb");
     String sakaiHead         = (String) request.getAttribute("sakaiHtmlHead");

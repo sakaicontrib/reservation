@@ -1,16 +1,16 @@
 <%@ page contentType="text/html;charset=UTF-8" %>
-<%@ page import="org.sakaiproject.reserva.CustomField, org.sakaiproject.util.ResourceLoader, java.util.List, java.util.Map" %>
+<%@ page import="org.sakaiproject.reservation.CustomField, org.sakaiproject.util.ResourceLoader, java.util.List, java.util.Map" %>
 <%
     ResourceLoader rb    = (ResourceLoader) request.getAttribute("rb");
     String sakaiHead     = (String)  request.getAttribute("sakaiHtmlHead");
     String bodyClass     = (String)  request.getAttribute("bodyClass");
     String toolTitle     = (String)  request.getAttribute("toolTitle");
-    Boolean confirmExito = (Boolean) request.getAttribute("confirmExito");
-    String  confirmError = (String)  request.getAttribute("confirmError");
-    String  confirmMsg   = (String)  request.getAttribute("confirmMensaje");
+    Boolean confirmSuccess = (Boolean) request.getAttribute("confirmSuccess");
+    String  confirmError   = (String)  request.getAttribute("confirmError");
+    String  confirmMsg     = (String)  request.getAttribute("confirmMessage");
 
-    if (toolTitle    == null) toolTitle    = rb.getString("tool.title.default");
-    if (confirmExito == null) confirmExito = false;
+    if (toolTitle      == null) toolTitle      = rb.getString("tool.title.default");
+    if (confirmSuccess == null) confirmSuccess = false;
 
     @SuppressWarnings("unchecked")
     List<CustomField> customFields = (List<CustomField>) request.getAttribute("customFields");
@@ -37,7 +37,7 @@
 
     <h3><%= toolTitle %> – <%= rb.getString("confirm.heading") %></h3>
 
-    <% if (confirmExito) { %>
+    <% if (confirmSuccess) { %>
         <div class="alertMessage" style="background:#e6ffe6; border-left:4px solid #090;">
             <strong><%= rb.getString("confirm.success.label") %></strong><br/>
             <%= confirmMsg != null ? confirmMsg.replace("<","&lt;") : rb.getString("confirm.success.default") %>

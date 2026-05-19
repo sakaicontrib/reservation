@@ -10,11 +10,11 @@
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
-    <groupId>org.sakaiproject.reserva</groupId>
-    <artifactId>reserva-espacios</artifactId>
+    <groupId>org.sakaiproject.reservation</groupId>
+    <artifactId>reservation</artifactId>
     <packaging>war</packaging>
     <version>1.0</version>
-    <name>Reserva de Espacios</name>
+    <name>Space Reservation</name>
 
     <build>
         <sourceDirectory>src/main/java</sourceDirectory>

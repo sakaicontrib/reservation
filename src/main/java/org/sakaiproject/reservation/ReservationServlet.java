@@ -1,4 +1,4 @@
-package org.sakaiproject.reserva;
+package org.sakaiproject.reservation;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -62,25 +62,25 @@ import lombok.extern.slf4j.Slf4j;
  *   GET  /tool/checkConflict → AJAX conflict check
  */
 @Slf4j
-public class ReservaEspaciosServlet extends HttpServlet {
+public class ReservationServlet extends HttpServlet {
 
-    private static final ResourceLoader rb = new ResourceLoader("org.sakaiproject.reserva.messages",
-            ReservaEspaciosServlet.class.getClassLoader());
+    private static final ResourceLoader rb = new ResourceLoader("org.sakaiproject.reservation.messages",
+            ReservationServlet.class.getClassLoader());
 
     // Calendar event property keys
-    static final String PROP_TOKEN              = "reserva.token";
-    static final String PROP_ESTADO             = "reserva.estado";
-    static final String PROP_SOLICITANTE_NOMBRE = "reserva.solicitante.nombre";
-    static final String PROP_SOLICITANTE_EMAIL  = "reserva.solicitante.email";
-    static final String PROP_CUSTOM_VALUES      = "reserva.custom.values";
-    static final String PROP_GROUP_ID           = "reserva.group.id";
-    static final String PROP_GROUP_EVENT_IDS    = "reserva.group.event.ids"; // comma-separated, lead only
-    static final String PROP_IS_LEAD            = "reserva.is.lead";
-    static final String PROP_SLOT_DESCS         = "reserva.slot.descriptions"; // JSON array, lead only
+    static final String PROP_TOKEN            = "reservation.token";
+    static final String PROP_STATUS           = "reservation.status";
+    static final String PROP_REQUESTER_NAME   = "reservation.requester.name";
+    static final String PROP_REQUESTER_EMAIL  = "reservation.requester.email";
+    static final String PROP_CUSTOM_VALUES      = "reservation.custom.values";
+    static final String PROP_GROUP_ID           = "reservation.group.id";
+    static final String PROP_GROUP_EVENT_IDS    = "reservation.group.event.ids"; // comma-separated, lead only
+    static final String PROP_IS_LEAD            = "reservation.is.lead";
+    static final String PROP_SLOT_DESCS         = "reservation.slot.descriptions"; // JSON array, lead only
 
-    static final String ESTADO_PENDIENTE  = "PENDIENTE";
-    static final String ESTADO_CONFIRMADO = "CONFIRMADO";
-    static final String ESTADO_CANCELADO  = "CANCELADO";
+    static final String STATUS_PENDING   = "PENDING";
+    static final String STATUS_CONFIRMED = "CONFIRMED";
+    static final String STATUS_CANCELLED = "CANCELLED";
 
     static final String EVENT_TYPE_PENDING   = "Meeting";
     static final String EVENT_TYPE_CONFIRMED = "Activity";
@@ -118,7 +118,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
             userDirectoryService = (UserDirectoryService)       cm.get(UserDirectoryService.class);
             securityService      = (SecurityService)            cm.get(SecurityService.class);
         } catch (Exception e) {
-            throw new ServletException("Error initializing ReservaEspaciosServlet", e);
+            throw new ServletException("Error initializing ReservationServlet", e);
         }
     }
 
@@ -153,9 +153,9 @@ public class ReservaEspaciosServlet extends HttpServlet {
 
     private List<CustomField> defaultFields() {
         return Arrays.asList(
-            new CustomField("espacio",         "Aula / Espacio",         "select",         true,  Collections.emptyList()),
-            new CustomField("material",     "Material",               "checkbox-group", false, Arrays.asList("Cámara", "Auriculares", "Corte de red")),
-            new CustomField("motivo",       "Motivo",                 "textarea",       false, Collections.emptyList())
+            new CustomField("espacio",         "Classroom / Space",      "select",         true,  Collections.emptyList()),
+            new CustomField("material",     "Equipment",              "checkbox-group", false, Arrays.asList("Camera", "Headphones", "Network disconnect")),
+            new CustomField("motivo",       "Reason",                 "textarea",       false, Collections.emptyList())
         );
     }
 
@@ -193,13 +193,13 @@ public class ReservaEspaciosServlet extends HttpServlet {
         populateUserData(req);
         populateFormAttributes(req);
 
-        if (esInstructor(req)) {
+        if (isMaintainer(req)) {
             resp.sendError(HttpServletResponse.SC_FORBIDDEN, "Maintain users cannot submit reservations");
             return;
         }
 
-        String nombre = nvl((String) req.getAttribute("nombre"), "");
-        String email  = nvl((String) req.getAttribute("email"),  "");
+        String name  = nvl((String) req.getAttribute("name"), "");
+        String email = nvl((String) req.getAttribute("email"),  "");
 
         if (!calendarExists(getSiteId())) {
             req.setAttribute("calendarMissing", true);
@@ -244,8 +244,8 @@ public class ReservaEspaciosServlet extends HttpServlet {
         }
 
         String endFieldType = getEndFieldType();
-        List<long[]>  rangos    = new ArrayList<>();
-        List<String>  slotDescs = new ArrayList<>();
+        List<long[]>  ranges       = new ArrayList<>();
+        List<String>  slotDescList = new ArrayList<>();
 
         for (int i = 0; i < slotCount; i++) {
             String date   = nvl(req.getParameter("slot_date_" + i), "");
@@ -253,11 +253,11 @@ public class ReservaEspaciosServlet extends HttpServlet {
 
             if (date.isEmpty()) continue;
 
-            long[] rango;
+            long[] range;
             String desc;
             try {
                 if (allDay) {
-                    rango = calcularRangoAllDay(date);
+                    range = calcAllDayRange(date);
                     desc  = LocalDate.parse(date).format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + " " + rb.getString("slot.allday.desc");
                 } else {
                     String startTime = nvl(req.getParameter("slot_start_" + i), "");
@@ -268,14 +268,14 @@ public class ReservaEspaciosServlet extends HttpServlet {
                         req.getRequestDispatcher("/index.jsp").include(req, resp);
                         return;
                     }
-                    rango = calcularRango(date + "T" + startTime, endValue, endFieldType);
-                    if (rango[1] <= rango[0]) {
+                    range = calcTimeRange(date + "T" + startTime, endValue, endFieldType);
+                    if (range[1] <= range[0]) {
                         req.setAttribute("error", rb.getFormattedMessage("error.slot.duration.zero", i + 1));
                         resp.setContentType("text/html;charset=UTF-8");
                         req.getRequestDispatcher("/index.jsp").include(req, resp);
                         return;
                     }
-                    desc = formatearFecha(rango[0]) + " – " + formatearFecha(rango[1]);
+                    desc = formatDate(range[0]) + " – " + formatDate(range[1]);
                 }
             } catch (DateTimeParseException | NumberFormatException e) {
                 req.setAttribute("error", rb.getFormattedMessage("error.slot.datetime.format", i + 1));
@@ -283,11 +283,11 @@ public class ReservaEspaciosServlet extends HttpServlet {
                 req.getRequestDispatcher("/index.jsp").include(req, resp);
                 return;
             }
-            rangos.add(rango);
-            slotDescs.add(desc);
+            ranges.add(range);
+            slotDescList.add(desc);
         }
 
-        if (rangos.isEmpty()) {
+        if (ranges.isEmpty()) {
             req.setAttribute("error", rb.getString("error.slots.valid"));
             resp.setContentType("text/html;charset=UTF-8");
             req.getRequestDispatcher("/index.jsp").include(req, resp);
@@ -296,10 +296,10 @@ public class ReservaEspaciosServlet extends HttpServlet {
 
         // Check conflicts for each slot
         String siteId = getSiteId();
-        for (int i = 0; i < rangos.size(); i++) {
-            String conflicto = comprobarConflicto(siteId, resource, rangos.get(i)[0], rangos.get(i)[1]);
-            if (conflicto != null) {
-                req.setAttribute("error", rb.getFormattedMessage("error.slot.conflict", i + 1, conflicto));
+        for (int i = 0; i < ranges.size(); i++) {
+            String conflict = checkConflict(siteId, resource, ranges.get(i)[0], ranges.get(i)[1]);
+            if (conflict != null) {
+                req.setAttribute("error", rb.getFormattedMessage("error.slot.conflict", i + 1, conflict));
                 resp.setContentType("text/html;charset=UTF-8");
                 req.getRequestDispatcher("/index.jsp").include(req, resp);
                 return;
@@ -310,12 +310,12 @@ public class ReservaEspaciosServlet extends HttpServlet {
         String groupId          = UUID.randomUUID().toString();
         String token            = UUID.randomUUID().toString();
         String customValuesJson = CustomFieldSerializer.valuesToJson(customValues);
-        String slotDescsJson    = buildSlotDescsJson(slotDescs);
+        String slotDescsJson    = buildSlotDescsJson(slotDescList);
         List<String> eventIds = new ArrayList<>();
-        for (int i = 0; i < rangos.size(); i++) {
+        for (int i = 0; i < ranges.size(); i++) {
             boolean isLead = (i == 0);
-            String eventId = crearEvento(siteId, resource, nombre, email,
-                    rangos.get(i)[0], rangos.get(i)[1], token,
+            String eventId = createEvent(siteId, resource, name, email,
+                    ranges.get(i)[0], ranges.get(i)[1], token,
                     isLead ? customValuesJson : "{}",
                     isLead, groupId, slotDescsJson, customFields);
             if (eventId == null) {
@@ -328,7 +328,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
         }
 
         // Store all event IDs on lead event
-        actualizarGroupEventIds(siteId, eventIds.get(0), String.join(",", eventIds));
+        updateGroupEventIds(siteId, eventIds.get(0), String.join(",", eventIds));
 
         // Build confirmation URL (always uses lead event)
         Placement placement = toolManager.getCurrentPlacement();
@@ -343,10 +343,10 @@ public class ReservaEspaciosServlet extends HttpServlet {
 
         if (!adminEmail.isEmpty()) {
             try {
-                String asunto = rb.getFormattedMessage("email.admin.subject", toolTitle, resource);
-                String cuerpo = buildEmailAdmin(nombre, email, resource, confirmUrl, cancelUrl,
-                        customFields, customValues, slotDescs);
-                emailService.send(fromEmail, adminEmail, asunto, cuerpo, null, null, null);
+                String subject = rb.getFormattedMessage("email.admin.subject", toolTitle, resource);
+                String body    = buildAdminEmail(name, email, resource, confirmUrl, cancelUrl,
+                        customFields, customValues, slotDescList);
+                emailService.send(fromEmail, adminEmail, subject, body, null, null, null);
             } catch (Exception e) {
                 log.warn("Error sending admin email: {}", e.getMessage(), e);
             }
@@ -354,17 +354,17 @@ public class ReservaEspaciosServlet extends HttpServlet {
 
         if (!email.isEmpty()) {
             try {
-                String asunto = rb.getFormattedMessage("email.ack.subject", toolTitle, resource);
-                String cuerpo = buildEmailAcuse(nombre, resource,
-                        customFields, customValues, slotDescs);
-                emailService.send(fromEmail, email, asunto, cuerpo, null, null, null);
+                String subject = rb.getFormattedMessage("email.ack.subject", toolTitle, resource);
+                String body    = buildAcknowledgementEmail(name, resource,
+                        customFields, customValues, slotDescList);
+                emailService.send(fromEmail, email, subject, body, null, null, null);
             } catch (Exception e) {
                 log.warn("Error sending acknowledgement email: {}", e.getMessage(), e);
             }
         }
 
-        req.setAttribute("exito", true);
-        req.setAttribute("mensajeExito", rb.getString("success.message"));
+        req.setAttribute("success", true);
+        req.setAttribute("successMessage", rb.getString("success.message"));
         resp.setContentType("text/html;charset=UTF-8");
         req.getRequestDispatcher("/index.jsp").include(req, resp);
     }
@@ -390,7 +390,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
             return;
         }
 
-        if (!esInstructor(req)) {
+        if (!isMaintainer(req)) {
             req.setAttribute("confirmError", rb.getString("error.confirm.permission"));
             resp.setContentType("text/html;charset=UTF-8");
             req.getRequestDispatcher("/confirm.jsp").include(req, resp);
@@ -399,19 +399,19 @@ public class ReservaEspaciosServlet extends HttpServlet {
 
         String siteId = getSiteId();
         List<CustomField> customFields = getCustomFields();
-        Map<String, String> customValues = leerCustomValues(siteId, eventId, customFields);
-        List<String> slotDescs = leerSlotDescs(siteId, eventId);
+        Map<String, String> customValues = readCustomValuesFromEvent(siteId, eventId, customFields);
+        List<String> slotDescs = readSlotDescs(siteId, eventId);
 
-        String resultado = confirmarReserva(siteId, eventId, token);
+        String result = confirmReservation(siteId, eventId, token);
 
-        if (resultado == null) {
-            req.setAttribute("confirmExito",   true);
-            req.setAttribute("confirmMensaje", rb.getString("confirm.success.message"));
+        if (result == null) {
+            req.setAttribute("confirmSuccess", true);
+            req.setAttribute("confirmMessage", rb.getString("confirm.success.message"));
             req.setAttribute("customFields",   customFields);
             req.setAttribute("customValues",   customValues);
             req.setAttribute("slotDescs",      slotDescs);
         } else {
-            req.setAttribute("confirmError", resultado);
+            req.setAttribute("confirmError", result);
         }
 
         resp.setContentType("text/html;charset=UTF-8");
@@ -439,20 +439,20 @@ public class ReservaEspaciosServlet extends HttpServlet {
             return;
         }
 
-        if (!esInstructor(req)) {
+        if (!isMaintainer(req)) {
             req.setAttribute("cancelError", rb.getString("error.cancel.permission"));
             resp.setContentType("text/html;charset=UTF-8");
             req.getRequestDispatcher("/cancel.jsp").include(req, resp);
             return;
         }
 
-        String resultado = cancelarReserva(getSiteId(), eventId, token);
+        String result = cancelReservation(getSiteId(), eventId, token);
 
-        if (resultado == null) {
-            req.setAttribute("cancelExito", true);
-            req.setAttribute("cancelMensaje", rb.getString("cancel.success.message"));
+        if (result == null) {
+            req.setAttribute("cancelSuccess", true);
+            req.setAttribute("cancelMessage", rb.getString("cancel.success.message"));
         } else {
-            req.setAttribute("cancelError", resultado);
+            req.setAttribute("cancelError", result);
         }
 
         resp.setContentType("text/html;charset=UTF-8");
@@ -474,24 +474,24 @@ public class ReservaEspaciosServlet extends HttpServlet {
         PrintWriter out = resp.getWriter();
 
         if (resource.isEmpty() || startValue.isEmpty()) {
-            out.print("{\"conflicto\":false}");
+            out.print("{\"conflict\":false}");
             return;
         }
 
         try {
-            long[] rango;
+            long[] range;
             if (allDay) {
-                rango = calcularRangoAllDay(startValue);
+                range = calcAllDayRange(startValue);
             } else {
-                if (endValue.isEmpty()) { out.print("{\"conflicto\":false}"); return; }
-                rango = calcularRango(startValue, endValue, getEndFieldType());
+                if (endValue.isEmpty()) { out.print("{\"conflict\":false}"); return; }
+                range = calcTimeRange(startValue, endValue, getEndFieldType());
             }
-            if (rango[1] <= rango[0]) { out.print("{\"conflicto\":false}"); return; }
-            String msg = comprobarConflicto(getSiteId(), resource, rango[0], rango[1]);
-            if (msg == null) out.print("{\"conflicto\":false}");
-            else             out.print("{\"conflicto\":true,\"mensaje\":" + jsonString(msg) + "}");
+            if (range[1] <= range[0]) { out.print("{\"conflict\":false}"); return; }
+            String msg = checkConflict(getSiteId(), resource, range[0], range[1]);
+            if (msg == null) out.print("{\"conflict\":false}");
+            else             out.print("{\"conflict\":true,\"message\":" + jsonString(msg) + "}");
         } catch (Exception e) {
-            out.print("{\"conflicto\":false}");
+            out.print("{\"conflict\":false}");
         }
     }
 
@@ -501,7 +501,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
 
     private void handleOptionsGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
-        if (!esInstructor(req)) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
+        if (!isMaintainer(req)) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
 
         populateSakaiHead(req);
 
@@ -523,7 +523,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
 
     private void handleOptionsPost(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
-        if (!esInstructor(req)) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
+        if (!isMaintainer(req)) { resp.sendError(HttpServletResponse.SC_FORBIDDEN); return; }
 
         Placement placement = toolManager.getCurrentPlacement();
         Properties props    = placement.getPlacementConfig();
@@ -570,24 +570,24 @@ public class ReservaEspaciosServlet extends HttpServlet {
     // Calendar logic
     // =========================================================================
 
-    private String comprobarConflicto(String siteId, String resource, long inicioMs, long finMs) {
+    private String checkConflict(String siteId, String resource, long startMs, long endMs) {
         SecurityAdvisor advisor = calendarReadAdvisor();
         try {
             securityService.pushAdvisor(advisor);
             String calRef = calendarService.calendarReference(siteId, "main");
             Calendar cal  = calendarService.getCalendar(calRef);
 
-            Time tIni = timeService.newTime(inicioMs);
-            Time tFin = timeService.newTime(finMs);
-            List<CalendarEvent> eventos = cal.getEvents(timeService.newTimeRange(tIni, tFin, true, false), null);
+            Time tStart = timeService.newTime(startMs);
+            Time tEnd   = timeService.newTime(endMs);
+            List<CalendarEvent> events = cal.getEvents(timeService.newTimeRange(tStart, tEnd, true, false), null);
 
-            for (CalendarEvent ev : eventos) {
-                if (ESTADO_CANCELADO.equals(ev.getField(PROP_ESTADO))) continue;
+            for (CalendarEvent ev : events) {
+                if (STATUS_CANCELLED.equals(ev.getField(PROP_STATUS))) continue;
                 if (resource.equals(ev.getLocation())) {
-                    String iniStr = formatearFecha(ev.getRange().firstTime().getTime());
-                    String finStr = formatearFecha(ev.getRange().lastTime().getTime());
+                    String startStr = formatDate(ev.getRange().firstTime().getTime());
+                    String endStr   = formatDate(ev.getRange().lastTime().getTime());
                     return rb.getFormattedMessage("conflict.resource.busy",
-                            resource, iniStr, finStr, ev.getDisplayName());
+                            resource, startStr, endStr, ev.getDisplayName());
                 }
             }
             return null;
@@ -602,8 +602,8 @@ public class ReservaEspaciosServlet extends HttpServlet {
         }
     }
 
-    private String crearEvento(String siteId, String resource, String nombre,
-            String email, long inicioMs, long finMs, String token,
+    private String createEvent(String siteId, String resource, String name,
+            String email, long startMs, long endMs, String token,
             String customValuesJson, boolean isLead, String groupId,
             String slotDescsJson, List<CustomField> customFields) {
         SecurityAdvisor advisor = calendarWriteAdvisor();
@@ -613,25 +613,25 @@ public class ReservaEspaciosServlet extends HttpServlet {
             Calendar cal  = calendarService.getCalendar(calRef);
 
             CalendarEventEdit edit = cal.addEvent();
-            edit.setDisplayName("[PENDIENTE] Reserva de " + resource);
+            edit.setDisplayName("[PENDING] Reservation: " + resource);
             edit.setType(EVENT_TYPE_PENDING);
             edit.setLocation(resource);
 
             if (isLead) {
-                edit.setDescription(buildEventDescription(nombre, email, customFields,
+                edit.setDescription(buildEventDescription(name, email, customFields,
                         CustomFieldSerializer.valuesFromJson(customValuesJson, customFields)));
             } else {
-                edit.setDescription("Solicitante: " + nombre + "\nEmail: " + email);
+                edit.setDescription("Requester: " + name + "\nEmail: " + email);
             }
 
-            Time tIni = timeService.newTime(inicioMs);
-            Time tFin = timeService.newTime(finMs);
-            edit.setRange(timeService.newTimeRange(tIni, tFin, true, false));
+            Time tStart = timeService.newTime(startMs);
+            Time tEnd   = timeService.newTime(endMs);
+            edit.setRange(timeService.newTimeRange(tStart, tEnd, true, false));
 
-            edit.setField(PROP_TOKEN,              token);
-            edit.setField(PROP_ESTADO,             ESTADO_PENDIENTE);
-            edit.setField(PROP_SOLICITANTE_NOMBRE, nombre);
-            edit.setField(PROP_SOLICITANTE_EMAIL,  email);
+            edit.setField(PROP_TOKEN,          token);
+            edit.setField(PROP_STATUS,         STATUS_PENDING);
+            edit.setField(PROP_REQUESTER_NAME, name);
+            edit.setField(PROP_REQUESTER_EMAIL, email);
             edit.setField(PROP_GROUP_ID,           groupId);
             edit.setField(PROP_IS_LEAD,            isLead ? "true" : "false");
             if (isLead) {
@@ -655,7 +655,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
         return null;
     }
 
-    private void actualizarGroupEventIds(String siteId, String leadEventId, String eventIds) {
+    private void updateGroupEventIds(String siteId, String leadEventId, String eventIds) {
         SecurityAdvisor advisor = calendarWriteAdvisor();
         try {
             securityService.pushAdvisor(advisor);
@@ -671,7 +671,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
         }
     }
 
-    private String confirmarReserva(String siteId, String eventId, String token) {
+    private String confirmReservation(String siteId, String eventId, String token) {
         SecurityAdvisor advisor = calendarWriteAdvisor();
         try {
             securityService.pushAdvisor(advisor);
@@ -686,26 +686,26 @@ public class ReservaEspaciosServlet extends HttpServlet {
                 return rb.getString("error.confirm.token");
             }
 
-            String estado = edit.getField(PROP_ESTADO);
-            if (ESTADO_CONFIRMADO.equals(estado)) {
+            String status = edit.getField(PROP_STATUS);
+            if (STATUS_CONFIRMED.equals(status)) {
                 cal.cancelEvent(edit);
                 return rb.getString("error.confirm.already.confirmed");
             }
-            if (ESTADO_CANCELADO.equals(estado)) {
+            if (STATUS_CANCELLED.equals(status)) {
                 cal.cancelEvent(edit);
                 return rb.getString("error.confirm.already.cancelled");
             }
 
-            String solEmail      = nvl(edit.getField(PROP_SOLICITANTE_EMAIL),  "");
-            String solNombre     = nvl(edit.getField(PROP_SOLICITANTE_NOMBRE), "");
-            String resource      = nvl(edit.getLocation(), "");
-            String groupEventIds = nvl(edit.getField(PROP_GROUP_EVENT_IDS), eventId);
-            String slotDescsJson = nvl(edit.getField(PROP_SLOT_DESCS), "[]");
+            String requesterEmail = nvl(edit.getField(PROP_REQUESTER_EMAIL), "");
+            String requesterName  = nvl(edit.getField(PROP_REQUESTER_NAME),  "");
+            String resource       = nvl(edit.getLocation(), "");
+            String groupEventIds  = nvl(edit.getField(PROP_GROUP_EVENT_IDS), eventId);
+            String slotDescsJson  = nvl(edit.getField(PROP_SLOT_DESCS), "[]");
 
             // Confirm lead event
             edit.setDisplayName(rb.getFormattedMessage("event.title.confirmed", resource));
             edit.setType(EVENT_TYPE_CONFIRMED);
-            edit.setField(PROP_ESTADO, ESTADO_CONFIRMADO);
+            edit.setField(PROP_STATUS, STATUS_CONFIRMED);
             edit.setField(PROP_TOKEN,  "");
             cal.commitEvent(edit);
 
@@ -717,7 +717,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
                     CalendarEventEdit gEdit = cal.getEditEvent(gId, CalendarService.EVENT_MODIFY_CALENDAR);
                     gEdit.setDisplayName(rb.getFormattedMessage("event.title.confirmed", resource));
                     gEdit.setType(EVENT_TYPE_CONFIRMED);
-                    gEdit.setField(PROP_ESTADO, ESTADO_CONFIRMADO);
+                    gEdit.setField(PROP_STATUS, STATUS_CONFIRMED);
                     cal.commitEvent(gEdit);
                 } catch (Exception e) {
                     log.warn("Could not confirm event {} in group", gId, e);
@@ -725,14 +725,14 @@ public class ReservaEspaciosServlet extends HttpServlet {
             }
 
             // Send confirmation email
-            if (!solEmail.isEmpty()) {
+            if (!requesterEmail.isEmpty()) {
                 try {
                     Properties props = getPlacementProperties();
                     String toolTitle = props.getProperty(CFG_TOOL_TITLE, rb.getString("tool.title.default"));
                     List<String> slotDescs = parseSlotDescs(slotDescsJson);
-                    String asunto = rb.getFormattedMessage("email.confirm.subject", toolTitle, resource);
-                    String cuerpo = buildEmailConfirmacion(solNombre, resource, slotDescs);
-                    emailService.send(getFromEmail(props), solEmail, asunto, cuerpo, null, null, null);
+                    String subject = rb.getFormattedMessage("email.confirm.subject", toolTitle, resource);
+                    String body    = buildConfirmationEmail(requesterName, resource, slotDescs);
+                    emailService.send(getFromEmail(props), requesterEmail, subject, body, null, null, null);
                 } catch (Exception e) {
                     log.warn("Error sending confirmation email: {}", e.getMessage(), e);
                 }
@@ -751,7 +751,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
         }
     }
 
-    private String cancelarReserva(String siteId, String eventId, String token) {
+    private String cancelReservation(String siteId, String eventId, String token) {
         SecurityAdvisor advisor = calendarWriteAdvisor();
         try {
             securityService.pushAdvisor(advisor);
@@ -766,25 +766,25 @@ public class ReservaEspaciosServlet extends HttpServlet {
                 return rb.getString("error.cancel.token");
             }
 
-            String estado = edit.getField(PROP_ESTADO);
-            if (ESTADO_CANCELADO.equals(estado)) {
+            String status = edit.getField(PROP_STATUS);
+            if (STATUS_CANCELLED.equals(status)) {
                 cal.cancelEvent(edit);
                 return rb.getString("error.cancel.already.cancelled");
             }
-            if (ESTADO_CONFIRMADO.equals(estado)) {
+            if (STATUS_CONFIRMED.equals(status)) {
                 cal.cancelEvent(edit);
                 return rb.getString("error.cancel.already.confirmed");
             }
 
-            String solEmail      = nvl(edit.getField(PROP_SOLICITANTE_EMAIL),  "");
-            String solNombre     = nvl(edit.getField(PROP_SOLICITANTE_NOMBRE), "");
-            String resource      = nvl(edit.getLocation(), "");
-            String groupEventIds = nvl(edit.getField(PROP_GROUP_EVENT_IDS), eventId);
-            String slotDescsJson = nvl(edit.getField(PROP_SLOT_DESCS), "[]");
+            String requesterEmail = nvl(edit.getField(PROP_REQUESTER_EMAIL), "");
+            String requesterName  = nvl(edit.getField(PROP_REQUESTER_NAME),  "");
+            String resource       = nvl(edit.getLocation(), "");
+            String groupEventIds  = nvl(edit.getField(PROP_GROUP_EVENT_IDS), eventId);
+            String slotDescsJson  = nvl(edit.getField(PROP_SLOT_DESCS), "[]");
 
             // Cancel lead event
             edit.setDisplayName(rb.getFormattedMessage("event.title.cancelled", resource));
-            edit.setField(PROP_ESTADO, ESTADO_CANCELADO);
+            edit.setField(PROP_STATUS, STATUS_CANCELLED);
             edit.setField(PROP_TOKEN,  "");
             cal.commitEvent(edit);
 
@@ -794,8 +794,8 @@ public class ReservaEspaciosServlet extends HttpServlet {
                 if (gId.isEmpty() || gId.equals(eventId)) continue;
                 try {
                     CalendarEventEdit gEdit = cal.getEditEvent(gId, CalendarService.EVENT_MODIFY_CALENDAR);
-                    gEdit.setDisplayName("[CANCELADA] Reserva de " + resource);
-                    gEdit.setField(PROP_ESTADO, ESTADO_CANCELADO);
+                    gEdit.setDisplayName("[CANCELLED] Reservation: " + resource);
+                    gEdit.setField(PROP_STATUS, STATUS_CANCELLED);
                     cal.commitEvent(gEdit);
                 } catch (Exception e) {
                     log.warn("Could not cancel event {} in group", gId, e);
@@ -803,14 +803,14 @@ public class ReservaEspaciosServlet extends HttpServlet {
             }
 
             // Send cancellation email to requester
-            if (!solEmail.isEmpty()) {
+            if (!requesterEmail.isEmpty()) {
                 try {
                     Properties props = getPlacementProperties();
                     String toolTitle = props.getProperty(CFG_TOOL_TITLE, rb.getString("tool.title.default"));
                     List<String> slotDescs = parseSlotDescs(slotDescsJson);
-                    String asunto = rb.getFormattedMessage("email.cancel.subject", toolTitle, resource);
-                    String cuerpo = buildEmailCancelacion(solNombre, resource, slotDescs);
-                    emailService.send(getFromEmail(props), solEmail, asunto, cuerpo, null, null, null);
+                    String subject = rb.getFormattedMessage("email.cancel.subject", toolTitle, resource);
+                    String body    = buildCancellationEmail(requesterName, resource, slotDescs);
+                    emailService.send(getFromEmail(props), requesterEmail, subject, body, null, null, null);
                 } catch (Exception e) {
                     log.warn("Error sending cancellation email: {}", e.getMessage(), e);
                 }
@@ -838,7 +838,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
         populateSakaiHead(req);
         populateFormAttributes(req);
 
-        if (!esInstructor(req)) {
+        if (!isMaintainer(req)) {
             resp.sendError(HttpServletResponse.SC_FORBIDDEN);
             return;
         }
@@ -860,7 +860,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
             }
         }
 
-        List<Map<String, String>> reservas = new ArrayList<>();
+        List<Map<String, String>> reservations = new ArrayList<>();
 
         SecurityAdvisor advisor = calendarReadAdvisor();
         securityService.pushAdvisor(advisor);
@@ -876,21 +876,21 @@ public class ReservaEspaciosServlet extends HttpServlet {
                     a.getRange().firstTime().getTime()));
 
             for (CalendarEvent ev : events) {
-                String estado = ev.getField(PROP_ESTADO);
-                if (estado == null || estado.isEmpty()) continue;
+                String status = ev.getField(PROP_STATUS);
+                if (status == null || status.isEmpty()) continue;
                 if (!resourceOptions.isEmpty() && !resourceOptions.contains(nvl(ev.getLocation(), ""))) continue;
                 Map<String, String> row = new java.util.LinkedHashMap<>();
                 row.put("eventId",  ev.getId());
-                row.put("recurso",  nvl(ev.getLocation(), ""));
-                row.put("nombre",   nvl(ev.getField(PROP_SOLICITANTE_NOMBRE), ""));
-                row.put("email",    nvl(ev.getField(PROP_SOLICITANTE_EMAIL), ""));
-                row.put("estado",   estado);
-                row.put("fecha",    ev.getRange().firstTime().toStringLocalDate());
-                row.put("hora",     ev.getRange().firstTime().toStringLocalTime());
+                row.put("resource", nvl(ev.getLocation(), ""));
+                row.put("name",     nvl(ev.getField(PROP_REQUESTER_NAME), ""));
+                row.put("email",    nvl(ev.getField(PROP_REQUESTER_EMAIL), ""));
+                row.put("status",   status);
+                row.put("date",     ev.getRange().firstTime().toStringLocalDate());
+                row.put("time",     ev.getRange().firstTime().toStringLocalTime());
                 long durMin = (ev.getRange().lastTime().getTime() - ev.getRange().firstTime().getTime()) / 60000L + 1;
-                row.put("duracion", durMin + " min");
-                reservas.add(row);
-                if (reservas.size() >= pageSize) break;
+                row.put("duration", durMin + " min");
+                reservations.add(row);
+                if (reservations.size() >= pageSize) break;
             }
         } catch (Exception e) {
             log.warn("Error loading reservations for manage view", e);
@@ -898,9 +898,9 @@ public class ReservaEspaciosServlet extends HttpServlet {
             securityService.popAdvisor(advisor);
         }
 
-        req.setAttribute("reservas",  reservas);
-        req.setAttribute("pageSize",  pageSize);
-        req.setAttribute("manageMsg", req.getParameter("msg"));
+        req.setAttribute("reservations", reservations);
+        req.setAttribute("pageSize",     pageSize);
+        req.setAttribute("manageMsg",    req.getParameter("msg"));
         resp.setContentType("text/html;charset=UTF-8");
         req.getRequestDispatcher("/manage.jsp").include(req, resp);
     }
@@ -913,7 +913,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
             throws ServletException, IOException {
         populateSakaiHead(req);
 
-        if (!esInstructor(req)) {
+        if (!isMaintainer(req)) {
             resp.sendError(HttpServletResponse.SC_FORBIDDEN);
             return;
         }
@@ -925,9 +925,9 @@ public class ReservaEspaciosServlet extends HttpServlet {
 
         String error = null;
         if ("confirm".equals(action)) {
-            error = confirmarReservaAdmin(siteId, eventId);
+            error = confirmReservationAdmin(siteId, eventId);
         } else if ("cancel".equals(action)) {
-            error = cancelarReservaAdmin(siteId, eventId);
+            error = cancelReservationAdmin(siteId, eventId);
         }
 
         String redirect = req.getContextPath() + req.getServletPath() + "/manage?pageSize=" + pageSize;
@@ -935,7 +935,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
         resp.sendRedirect(redirect);
     }
 
-    private String confirmarReservaAdmin(String siteId, String eventId) {
+    private String confirmReservationAdmin(String siteId, String eventId) {
         SecurityAdvisor advisor = calendarWriteAdvisor();
         securityService.pushAdvisor(advisor);
         try {
@@ -943,19 +943,19 @@ public class ReservaEspaciosServlet extends HttpServlet {
             Calendar cal = calendarService.getCalendar(calRef);
             CalendarEventEdit edit = cal.getEditEvent(eventId, CalendarService.EVENT_MODIFY_CALENDAR);
 
-            if (!ESTADO_PENDIENTE.equals(edit.getField(PROP_ESTADO))) {
+            if (!STATUS_PENDING.equals(edit.getField(PROP_STATUS))) {
                 cal.cancelEvent(edit);
                 return "not.pending";
             }
 
-            String solEmail  = nvl(edit.getField(PROP_SOLICITANTE_EMAIL),  "");
-            String solNombre = nvl(edit.getField(PROP_SOLICITANTE_NOMBRE), "");
-            String resource  = nvl(edit.getLocation(), "");
-            String groupEventIds = nvl(edit.getField(PROP_GROUP_EVENT_IDS), eventId);
-            String slotDescsJson = nvl(edit.getField(PROP_SLOT_DESCS), "[]");
+            String requesterEmail = nvl(edit.getField(PROP_REQUESTER_EMAIL), "");
+            String requesterName  = nvl(edit.getField(PROP_REQUESTER_NAME),  "");
+            String resource       = nvl(edit.getLocation(), "");
+            String groupEventIds  = nvl(edit.getField(PROP_GROUP_EVENT_IDS), eventId);
+            String slotDescsJson  = nvl(edit.getField(PROP_SLOT_DESCS), "[]");
 
             edit.setDisplayName(rb.getFormattedMessage("event.title.confirmed", resource));
-            edit.setField(PROP_ESTADO, ESTADO_CONFIRMADO);
+            edit.setField(PROP_STATUS, STATUS_CONFIRMED);
             edit.setField(PROP_TOKEN, "");
             edit.setType(EVENT_TYPE_CONFIRMED);
             cal.commitEvent(edit);
@@ -966,7 +966,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
                 try {
                     CalendarEventEdit gEdit = cal.getEditEvent(gId, CalendarService.EVENT_MODIFY_CALENDAR);
                     gEdit.setDisplayName(rb.getFormattedMessage("event.title.confirmed", resource));
-                    gEdit.setField(PROP_ESTADO, ESTADO_CONFIRMADO);
+                    gEdit.setField(PROP_STATUS, STATUS_CONFIRMED);
                     gEdit.setType(EVENT_TYPE_CONFIRMED);
                     cal.commitEvent(gEdit);
                 } catch (Exception e) {
@@ -974,14 +974,14 @@ public class ReservaEspaciosServlet extends HttpServlet {
                 }
             }
 
-            if (!solEmail.isEmpty()) {
+            if (!requesterEmail.isEmpty()) {
                 try {
                     Properties props = getPlacementProperties();
                     String toolTitle = props.getProperty(CFG_TOOL_TITLE, rb.getString("tool.title.default"));
                     List<String> slotDescs = parseSlotDescs(slotDescsJson);
-                    String asunto = rb.getFormattedMessage("email.confirm.subject", toolTitle, resource);
-                    String cuerpo = buildEmailConfirmacion(solNombre, resource, slotDescs);
-                    emailService.send(getFromEmail(props), solEmail, asunto, cuerpo, null, null, null);
+                    String subject = rb.getFormattedMessage("email.confirm.subject", toolTitle, resource);
+                    String body    = buildConfirmationEmail(requesterName, resource, slotDescs);
+                    emailService.send(getFromEmail(props), requesterEmail, subject, body, null, null, null);
                 } catch (Exception e) {
                     log.warn("Error sending confirmation email from manage panel", e);
                 }
@@ -995,7 +995,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
         }
     }
 
-    private String cancelarReservaAdmin(String siteId, String eventId) {
+    private String cancelReservationAdmin(String siteId, String eventId) {
         SecurityAdvisor advisor = calendarWriteAdvisor();
         securityService.pushAdvisor(advisor);
         try {
@@ -1003,19 +1003,19 @@ public class ReservaEspaciosServlet extends HttpServlet {
             Calendar cal = calendarService.getCalendar(calRef);
             CalendarEventEdit edit = cal.getEditEvent(eventId, CalendarService.EVENT_MODIFY_CALENDAR);
 
-            if (!ESTADO_PENDIENTE.equals(edit.getField(PROP_ESTADO))) {
+            if (!STATUS_PENDING.equals(edit.getField(PROP_STATUS))) {
                 cal.cancelEvent(edit);
                 return "not.pending";
             }
 
-            String solEmail  = nvl(edit.getField(PROP_SOLICITANTE_EMAIL),  "");
-            String solNombre = nvl(edit.getField(PROP_SOLICITANTE_NOMBRE), "");
-            String resource  = nvl(edit.getLocation(), "");
-            String groupEventIds = nvl(edit.getField(PROP_GROUP_EVENT_IDS), eventId);
-            String slotDescsJson = nvl(edit.getField(PROP_SLOT_DESCS), "[]");
+            String requesterEmail = nvl(edit.getField(PROP_REQUESTER_EMAIL), "");
+            String requesterName  = nvl(edit.getField(PROP_REQUESTER_NAME),  "");
+            String resource       = nvl(edit.getLocation(), "");
+            String groupEventIds  = nvl(edit.getField(PROP_GROUP_EVENT_IDS), eventId);
+            String slotDescsJson  = nvl(edit.getField(PROP_SLOT_DESCS), "[]");
 
             edit.setDisplayName(rb.getFormattedMessage("event.title.cancelled", resource));
-            edit.setField(PROP_ESTADO, ESTADO_CANCELADO);
+            edit.setField(PROP_STATUS, STATUS_CANCELLED);
             edit.setField(PROP_TOKEN, "");
             cal.commitEvent(edit);
 
@@ -1025,21 +1025,21 @@ public class ReservaEspaciosServlet extends HttpServlet {
                 try {
                     CalendarEventEdit gEdit = cal.getEditEvent(gId, CalendarService.EVENT_MODIFY_CALENDAR);
                     gEdit.setDisplayName(rb.getFormattedMessage("event.title.cancelled", resource));
-                    gEdit.setField(PROP_ESTADO, ESTADO_CANCELADO);
+                    gEdit.setField(PROP_STATUS, STATUS_CANCELLED);
                     cal.commitEvent(gEdit);
                 } catch (Exception e) {
                     log.warn("Could not cancel event {} in group", gId, e);
                 }
             }
 
-            if (!solEmail.isEmpty()) {
+            if (!requesterEmail.isEmpty()) {
                 try {
                     Properties props = getPlacementProperties();
                     String toolTitle = props.getProperty(CFG_TOOL_TITLE, rb.getString("tool.title.default"));
                     List<String> slotDescs = parseSlotDescs(slotDescsJson);
-                    String asunto = rb.getFormattedMessage("email.cancel.subject", toolTitle, resource);
-                    String cuerpo = buildEmailCancelacion(solNombre, resource, slotDescs);
-                    emailService.send(getFromEmail(props), solEmail, asunto, cuerpo, null, null, null);
+                    String subject = rb.getFormattedMessage("email.cancel.subject", toolTitle, resource);
+                    String body    = buildCancellationEmail(requesterName, resource, slotDescs);
+                    emailService.send(getFromEmail(props), requesterEmail, subject, body, null, null, null);
                 } catch (Exception e) {
                     log.warn("Error sending cancellation email from manage panel", e);
                 }
@@ -1060,7 +1060,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
     private void populateFormAttributes(HttpServletRequest req) {
         Properties props = getPlacementProperties();
         req.setAttribute("toolTitle",        props.getProperty(CFG_TOOL_TITLE,           rb.getString("tool.title.default")));
-        req.setAttribute("esInstructor",     esInstructor(req));
+        req.setAttribute("isMaintainer",     isMaintainer(req));
         req.setAttribute("customFields",     getCustomFields());
         req.setAttribute("resourceFieldId",  props.getProperty(CFG_RESOURCE_FIELD,       DEFAULT_RESOURCE_FIELD));
         req.setAttribute("slotDefaultStart", props.getProperty(CFG_SLOT_DEFAULT_START,   DEFAULT_SLOT_DEFAULT_START));
@@ -1076,7 +1076,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
         return values;
     }
 
-    private Map<String, String> leerCustomValues(String siteId, String eventId, List<CustomField> fields) {
+    private Map<String, String> readCustomValuesFromEvent(String siteId, String eventId, List<CustomField> fields) {
         SecurityAdvisor advisor = calendarReadAdvisor();
         try {
             securityService.pushAdvisor(advisor);
@@ -1092,7 +1092,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
         }
     }
 
-    private List<String> leerSlotDescs(String siteId, String eventId) {
+    private List<String> readSlotDescs(String siteId, String eventId) {
         SecurityAdvisor advisor = calendarReadAdvisor();
         try {
             securityService.pushAdvisor(advisor);
@@ -1147,7 +1147,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
             Session session = (Session) req.getAttribute(RequestFilter.ATTR_SESSION);
             if (session != null && session.getUserId() != null) {
                 User user = userDirectoryService.getUser(session.getUserId());
-                req.setAttribute("nombre", user.getDisplayName());
+                req.setAttribute("name", user.getDisplayName());
                 req.setAttribute("email",  user.getEmail());
             }
         } catch (Exception e) {
@@ -1181,7 +1181,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
         return p != null ? p.getContext() : "";
     }
 
-    private boolean esInstructor(HttpServletRequest req) {
+    private boolean isMaintainer(HttpServletRequest req) {
         try {
             Session session = (Session) req.getAttribute(RequestFilter.ATTR_SESSION);
             if (session == null) return false;
@@ -1206,7 +1206,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
      * Computes a time range from a start datetime-local string and an end value.
      * The end value is either minutes (duration-slot) or HH:mm (time/time-slot).
      */
-    private long[] calcularRango(String startDtLocal, String endValue, String endFieldType) {
+    private long[] calcTimeRange(String startDtLocal, String endValue, String endFieldType) {
         ZoneId zone = ZoneId.systemDefault();
         LocalDateTime startDT = LocalDateTime.parse(startDtLocal,
                 DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"));
@@ -1223,7 +1223,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
         };
     }
 
-    private long[] calcularRangoAllDay(String date) {
+    private long[] calcAllDayRange(String date) {
         ZoneId zone = ZoneId.systemDefault();
         LocalDate d = LocalDate.parse(date);
         return new long[]{
@@ -1232,7 +1232,7 @@ public class ReservaEspaciosServlet extends HttpServlet {
         };
     }
 
-    private String formatearFecha(long epochMs) {
+    private String formatDate(long epochMs) {
         return LocalDateTime.ofEpochSecond(epochMs / 1000, 0, java.time.ZoneOffset.UTC)
                 .atZone(java.time.ZoneOffset.UTC)
                 .withZoneSameInstant(ZoneId.systemDefault())
@@ -1301,20 +1301,20 @@ public class ReservaEspaciosServlet extends HttpServlet {
     // Email and description builders
     // =========================================================================
 
-    private String buildEventDescription(String nombre, String email,
+    private String buildEventDescription(String name, String email,
             List<CustomField> fields, Map<String, String> values) {
         StringBuilder sb = new StringBuilder();
-        sb.append("Solicitante: ").append(nombre).append("\nEmail: ").append(email).append("\n");
+        sb.append("Requester: ").append(name).append("\nEmail: ").append(email).append("\n");
         appendCustomValues(sb, fields, values);
         return sb.toString();
     }
 
-    private String buildEmailAdmin(String nombre, String email, String resource,
+    private String buildAdminEmail(String name, String email, String resource,
             String confirmUrl, String cancelUrl, List<CustomField> fields,
             Map<String, String> values, List<String> slotDescs) {
         StringBuilder sb = new StringBuilder();
         sb.append(rb.getString("email.admin.intro")).append("\n\n");
-        sb.append(rb.getString("email.label.requester")).append(" : ").append(nombre).append("\n");
+        sb.append(rb.getString("email.label.requester")).append(" : ").append(name).append("\n");
         sb.append(rb.getString("email.label.email")).append("       : ").append(email).append("\n");
         sb.append(rb.getString("email.label.resource")).append("     : ").append(resource).append("\n");
         appendSlotDescs(sb, slotDescs);
@@ -1327,11 +1327,11 @@ public class ReservaEspaciosServlet extends HttpServlet {
         return sb.toString();
     }
 
-    private String buildEmailAcuse(String nombre, String resource,
+    private String buildAcknowledgementEmail(String name, String resource,
             List<CustomField> fields, Map<String, String> values,
             List<String> slotDescs) {
         StringBuilder sb = new StringBuilder();
-        sb.append(rb.getFormattedMessage("email.ack.greeting", nombre)).append("\n\n");
+        sb.append(rb.getFormattedMessage("email.ack.greeting", name)).append("\n\n");
         sb.append(rb.getString("email.ack.text")).append("\n\n");
         sb.append(rb.getString("email.label.resource")).append(" : ").append(resource).append("\n");
         appendSlotDescs(sb, slotDescs);
@@ -1340,9 +1340,9 @@ public class ReservaEspaciosServlet extends HttpServlet {
         return sb.toString();
     }
 
-    private String buildEmailCancelacion(String nombre, String resource, List<String> slotDescs) {
+    private String buildCancellationEmail(String name, String resource, List<String> slotDescs) {
         StringBuilder sb = new StringBuilder();
-        sb.append(rb.getFormattedMessage("email.cancel.greeting", nombre)).append("\n\n");
+        sb.append(rb.getFormattedMessage("email.cancel.greeting", name)).append("\n\n");
         sb.append(rb.getString("email.cancel.text")).append("\n\n");
         sb.append("  ").append(rb.getString("email.label.resource")).append(" : ").append(resource).append("\n");
         appendSlotDescs(sb, slotDescs);
@@ -1350,9 +1350,9 @@ public class ReservaEspaciosServlet extends HttpServlet {
         return sb.toString();
     }
 
-    private String buildEmailConfirmacion(String nombre, String resource, List<String> slotDescs) {
+    private String buildConfirmationEmail(String name, String resource, List<String> slotDescs) {
         StringBuilder sb = new StringBuilder();
-        sb.append(rb.getFormattedMessage("email.confirm.greeting", nombre)).append("\n\n");
+        sb.append(rb.getFormattedMessage("email.confirm.greeting", name)).append("\n\n");
         sb.append(rb.getString("email.confirm.text")).append("\n\n");
         sb.append("  ").append(rb.getString("email.label.resource")).append(" : ").append(resource).append("\n");
         appendSlotDescs(sb, slotDescs);

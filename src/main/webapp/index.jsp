@@ -1,23 +1,23 @@
 <%@ page contentType="text/html;charset=UTF-8" %>
-<%@ page import="java.util.List, java.util.Map, java.util.Arrays, org.sakaiproject.reserva.CustomField, org.sakaiproject.util.ResourceLoader" %>
+<%@ page import="java.util.List, java.util.Map, java.util.Arrays, org.sakaiproject.reservation.CustomField, org.sakaiproject.util.ResourceLoader" %>
 <%
     ResourceLoader rb    = (ResourceLoader) request.getAttribute("rb");
     String sakaiHead     = (String)  request.getAttribute("sakaiHtmlHead");
     String bodyClass     = (String)  request.getAttribute("bodyClass");
     String toolTitle     = (String)  request.getAttribute("toolTitle");
-    Boolean esInstructor = (Boolean) request.getAttribute("esInstructor");
-    Boolean exito          = (Boolean) request.getAttribute("exito");
-    String  mensajeExito   = (String)  request.getAttribute("mensajeExito");
+    Boolean isMaintainer   = (Boolean) request.getAttribute("isMaintainer");
+    Boolean success        = (Boolean) request.getAttribute("success");
+    String  successMessage = (String)  request.getAttribute("successMessage");
     String  error          = (String)  request.getAttribute("error");
     Boolean calendarMissing = (Boolean) request.getAttribute("calendarMissing");
     if (calendarMissing == null) calendarMissing = false;
 
-    if (toolTitle    == null) toolTitle    = rb.getString("tool.title.default");
-    if (esInstructor == null) esInstructor = false;
-    if (exito        == null) exito        = false;
+    if (toolTitle     == null) toolTitle     = rb.getString("tool.title.default");
+    if (isMaintainer  == null) isMaintainer  = false;
+    if (success       == null) success       = false;
 
-    String nombre = request.getAttribute("nombre") != null ? (String) request.getAttribute("nombre") : "";
-    String email  = request.getAttribute("email")  != null ? (String) request.getAttribute("email")  : "";
+    String name  = request.getAttribute("name")  != null ? (String) request.getAttribute("name")  : "";
+    String email = request.getAttribute("email") != null ? (String) request.getAttribute("email") : "";
 
     @SuppressWarnings("unchecked")
     List<CustomField> customFields = request.getAttribute("customFields") != null
@@ -41,8 +41,8 @@
     String siteId      = (String) request.getAttribute("siteId");
     String placementId = (String) request.getAttribute("placementId");
 
-    String escNombre = nombre.replace("&","&amp;").replace("<","&lt;").replace("\"","&quot;");
-    String escEmail  = email.replace("&","&amp;").replace("<","&lt;").replace("\"","&quot;");
+    String escName  = name.replace("&","&amp;").replace("<","&lt;").replace("\"","&quot;");
+    String escEmail = email.replace("&","&amp;").replace("<","&lt;").replace("\"","&quot;");
 %>
 <html>
 <head>
@@ -75,7 +75,7 @@
 
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
         <h3 style="margin:0"><%= toolTitle %></h3>
-        <% if (esInstructor && siteId != null && placementId != null) { %>
+        <% if (isMaintainer && siteId != null && placementId != null) { %>
         <div style="display:flex; gap:6px;">
             <a href="/portal/site/<%= siteId %>/tool/<%= placementId %>/options" class="button"><%= rb.getString("nav.options") %></a>
             <a href="/portal/site/<%= siteId %>/tool/<%= placementId %>/manage" class="button"><%= rb.getString("nav.manage") %></a>
@@ -89,9 +89,9 @@
         </div>
     <% } %>
 
-    <% if (exito) { %>
+    <% if (success) { %>
         <div class="alertMessage" style="margin-bottom:12px;">
-            <%= mensajeExito != null ? mensajeExito : rb.getString("success.message") %>
+            <%= successMessage != null ? successMessage : rb.getString("success.message") %>
         </div>
     <% } %>
 
@@ -101,7 +101,7 @@
         </div>
     <% } %>
 
-    <% if (!exito) { %>
+    <% if (!success) { %>
     <div class="reserva-form">
     <form method="post" action="" id="reservaForm">
         <input type="hidden" name="slot_count" id="slot_count" value="1" />
@@ -109,8 +109,8 @@
         <table class="listHier lines nolines">
             <%-- Fixed: requester name (read-only) --%>
             <tr>
-                <td><label for="nombreField" class="field-required"><%= rb.getString("field.name") %></label></td>
-                <td><input type="text" id="nombreField" value="<%= escNombre %>"
+                <td><label for="nameField" class="field-required"><%= rb.getString("field.name") %></label></td>
+                <td><input type="text" id="nameField" value="<%= escName %>"
                            readonly title="<%= rb.getString("field.name.title") %>" /></td>
             </tr>
             <%-- Fixed: requester email (read-only) --%>
@@ -233,8 +233,8 @@
                 <td></td>
                 <td style="padding-top:10px;">
                     <input type="submit" value="<%= rb.getString("submit.button") %>" class="active" id="submitBtn"
-                           <%= (calendarMissing || esInstructor) ? "disabled" : "" %> />
-                    <% if (esInstructor) { %>
+                           <%= (calendarMissing || isMaintainer) ? "disabled" : "" %> />
+                    <% if (isMaintainer) { %>
                     <small style="display:block; margin-top:6px; color:#c00;"><%= rb.getString("maintain.cannot.submit") %></small>
                     <% } else { %>
                     <small style="display:block; margin-top:6px; color:#777;"><%= rb.getString("field.required.hint") %></small>
@@ -391,8 +391,8 @@ function checkSlotConflict(i) {
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (!warning) return;
-            if (data.conflicto) {
-                warning.textContent = '⚠ ' + (data.mensaje || i18n.conflictDefault);
+            if (data.conflict) {
+                warning.textContent = '⚠ ' + (data.message || i18n.conflictDefault);
                 warning.style.display = 'block';
                 document.getElementById('submitBtn').disabled = true;
             } else {

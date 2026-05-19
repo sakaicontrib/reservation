@@ -10,11 +10,11 @@
     int    pageSize      = (Integer) request.getAttribute("pageSize");
     String manageMsg     = (String) request.getAttribute("manageMsg");
     @SuppressWarnings("unchecked")
-    List<Map<String, String>> reservas = (List<Map<String, String>>) request.getAttribute("reservas");
+    List<Map<String, String>> reservations = (List<Map<String, String>>) request.getAttribute("reservations");
 
-    String PENDIENTE  = "PENDIENTE";
-    String CONFIRMADO = "CONFIRMADO";
-    String CANCELADO  = "CANCELADO";
+    String PENDING   = "PENDING";
+    String CONFIRMED = "CONFIRMED";
+    String CANCELLED = "CANCELLED";
 %>
 <!DOCTYPE html>
 <html>
@@ -26,9 +26,9 @@
         .manage-table th { background: #e8e8e8; padding: 6px 8px; text-align: left; border-bottom: 2px solid #ccc; }
         .manage-table td { padding: 6px 8px; border-bottom: 1px solid #ddd; vertical-align: middle; }
         .manage-table tr:hover td { background: #f9f9f9; }
-        .estado-PENDIENTE  { color: #c06000; font-weight: bold; }
-        .estado-CONFIRMADO { color: #006600; font-weight: bold; }
-        .estado-CANCELADO  { color: #990000; font-weight: bold; }
+        .estado-PENDING   { color: #c06000; font-weight: bold; }
+        .estado-CONFIRMED { color: #006600; font-weight: bold; }
+        .estado-CANCELLED { color: #990000; font-weight: bold; }
         .btn-confirm { background: #006600; color: #fff; border: none; padding: 3px 10px; cursor: pointer; border-radius: 3px; }
         .btn-cancel  { background: #990000; color: #fff; border: none; padding: 3px 10px; cursor: pointer; border-radius: 3px; margin-left: 4px; }
         .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 1em; }
@@ -55,10 +55,10 @@
             <option value="<%= n %>" <%= n == pageSize ? "selected" : "" %>><%= n %></option>
             <% } %>
         </select>
-        <span style="color:#666; font-size:0.9em;">(<%= reservas.size() %> <%= rb.getString("manage.results") %>)</span>
+        <span style="color:#666; font-size:0.9em;">(<%= reservations.size() %> <%= rb.getString("manage.results") %>)</span>
     </div>
 
-    <% if (reservas.isEmpty()) { %>
+    <% if (reservations.isEmpty()) { %>
     <p><%= rb.getString("manage.no.reservations") %></p>
     <% } else { %>
     <table class="manage-table">
@@ -73,22 +73,22 @@
             </tr>
         </thead>
         <tbody>
-        <% for (Map<String, String> r : reservas) {
-            String estado  = r.get("estado");
+        <% for (Map<String, String> r : reservations) {
+            String status  = r.get("status");
             String eventId = r.get("eventId");
         %>
             <tr>
-                <td><%= r.get("fecha") %></td>
-                <td><%= r.get("hora") %> <small style="color:#666">(<%= r.get("duracion") %>)</small></td>
-                <td><%= r.get("recurso") %></td>
-                <td><%= r.get("nombre") %><br/><small style="color:#666"><%= r.get("email") %></small></td>
-                <td><span class="estado-<%= estado %>">
-                    <%= PENDIENTE.equals(estado)  ? rb.getString("manage.status.pending")   :
-                        CONFIRMADO.equals(estado) ? rb.getString("manage.status.confirmed") :
-                                                    rb.getString("manage.status.cancelled") %>
+                <td><%= r.get("date") %></td>
+                <td><%= r.get("time") %> <small style="color:#666">(<%= r.get("duration") %>)</small></td>
+                <td><%= r.get("resource") %></td>
+                <td><%= r.get("name") %><br/><small style="color:#666"><%= r.get("email") %></small></td>
+                <td><span class="estado-<%= status %>">
+                    <%= PENDING.equals(status)   ? rb.getString("manage.status.pending")   :
+                        CONFIRMED.equals(status) ? rb.getString("manage.status.confirmed") :
+                                                   rb.getString("manage.status.cancelled") %>
                 </span></td>
                 <td>
-                <% if (PENDIENTE.equals(estado)) { %>
+                <% if (PENDING.equals(status)) { %>
                     <form method="post" action="" style="display:inline">
                         <input type="hidden" name="eventId"  value="<%= eventId %>"/>
                         <input type="hidden" name="pageSize" value="<%= pageSize %>"/>

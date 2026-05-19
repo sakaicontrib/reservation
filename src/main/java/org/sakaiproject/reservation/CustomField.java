@@ -1,4 +1,4 @@
-package org.sakaiproject.reserva;
+package org.sakaiproject.reservation;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <registration>
-    <tool id="sakai.reserva-espacios" title="Reserva de Espacios" description="Herramienta de reserva de espacios y recursos">
+    <tool id="sakai.reservation" title="Space Reservation" description="Tool for reserving spaces and resources">
         <category name="admin" />
         <configuration name="default.page" value="/index.jsp" />
     </tool>

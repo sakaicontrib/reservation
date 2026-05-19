@@ -5,12 +5,12 @@
     String sakaiHead    = (String)  request.getAttribute("sakaiHtmlHead");
     String bodyClass    = (String)  request.getAttribute("bodyClass");
     String toolTitle    = (String)  request.getAttribute("toolTitle");
-    Boolean cancelExito = (Boolean) request.getAttribute("cancelExito");
-    String  cancelError = (String)  request.getAttribute("cancelError");
-    String  cancelMsg   = (String)  request.getAttribute("cancelMensaje");
+    Boolean cancelSuccess = (Boolean) request.getAttribute("cancelSuccess");
+    String  cancelError   = (String)  request.getAttribute("cancelError");
+    String  cancelMsg     = (String)  request.getAttribute("cancelMessage");
 
-    if (toolTitle    == null) toolTitle    = rb.getString("tool.title.default");
-    if (cancelExito  == null) cancelExito  = false;
+    if (toolTitle     == null) toolTitle     = rb.getString("tool.title.default");
+    if (cancelSuccess == null) cancelSuccess = false;
 
     String siteId      = (String) request.getAttribute("siteId");
     String placementId = (String) request.getAttribute("placementId");
@@ -25,7 +25,7 @@
 
     <h3><%= toolTitle %> – <%= rb.getString("cancel.heading") %></h3>
 
-    <% if (cancelExito) { %>
+    <% if (cancelSuccess) { %>
         <div class="alertMessage" style="background:#ffeaea; border-left:4px solid #c00;">
             <strong><%= rb.getString("cancel.success.label") %></strong><br/>
             <%= cancelMsg != null ? cancelMsg.replace("<","&lt;") : rb.getString("cancel.success.default") %>

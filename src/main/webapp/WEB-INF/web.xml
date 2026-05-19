@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <web-app xmlns="http://xmlns.jcp.org/xml/ns/javaee" version="4.0">
-    <display-name>sakai.reserva-espacios</display-name>
+    <display-name>sakai.reservation</display-name>
 
     <servlet>
-        <servlet-name>sakai.reserva-espacios</servlet-name>
-        <servlet-class>org.sakaiproject.reserva.ReservaEspaciosServlet</servlet-class>
+        <servlet-name>sakai.reservation</servlet-name>
+        <servlet-class>org.sakaiproject.reservation.ReservationServlet</servlet-class>
         <load-on-startup>1</load-on-startup>
     </servlet>
 
     <servlet-mapping>
-        <servlet-name>sakai.reserva-espacios</servlet-name>
+        <servlet-name>sakai.reservation</servlet-name>
         <url-pattern>/tool</url-pattern>
         <url-pattern>/tool/*</url-pattern>
     </servlet-mapping>
