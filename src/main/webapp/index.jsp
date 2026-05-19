@@ -76,7 +76,10 @@
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
         <h3 style="margin:0"><%= toolTitle %></h3>
         <% if (esInstructor && siteId != null && placementId != null) { %>
+        <div style="display:flex; gap:6px;">
             <a href="/portal/site/<%= siteId %>/tool/<%= placementId %>/options" class="button"><%= rb.getString("nav.options") %></a>
+            <a href="/portal/site/<%= siteId %>/tool/<%= placementId %>/manage" class="button"><%= rb.getString("nav.manage") %></a>
+        </div>
         <% } %>
     </div>
 
@@ -230,8 +233,12 @@
                 <td></td>
                 <td style="padding-top:10px;">
                     <input type="submit" value="<%= rb.getString("submit.button") %>" class="active" id="submitBtn"
-                           <%= calendarMissing ? "disabled" : "" %> />
+                           <%= (calendarMissing || esInstructor) ? "disabled" : "" %> />
+                    <% if (esInstructor) { %>
+                    <small style="display:block; margin-top:6px; color:#c00;"><%= rb.getString("maintain.cannot.submit") %></small>
+                    <% } else { %>
                     <small style="display:block; margin-top:6px; color:#777;"><%= rb.getString("field.required.hint") %></small>
+                    <% } %>
                 </td>
             </tr>
         </table>
